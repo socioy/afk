@@ -5,15 +5,16 @@ Copyright (c) 2026 socioy
 See LICENSE file for full license text.
 
 This module implements the ToolRegistry for AFK.
-It supports registering sync/async tools (tools are executed async via BaseTool/Tool),
+It supports registering sync/async tools (tools are executed async via Tool/BaseTool),
 optional entry-point plugin discovery, concurrency limiting, allow/deny policies,
-and exporting tool specs to LLM tool-calling formats.
+registry-level middlewares (wrap ALL tools), and exporting tool specs to LLM tool-calling formats.
 """
 
 import asyncio
+import inspect
 import time
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence
+from typing import Any, Awaitable, Callable, Dict, Iterable, List, Optional, Sequence
 
 try:
     # Python 3.10+
@@ -21,7 +22,8 @@ try:
 except Exception:  # pragma: no cover
     import importlib_metadata  # type: ignore
 
-from .base import Tool, ToolContext, ToolResult, ToolSpec 
+from .base import Tool, ToolContext, ToolResult, ToolSpec, as_async 
+
 from .errors import (
     ToolAlreadyRegisteredError,
     ToolNotFoundError,
@@ -29,9 +31,7 @@ from .errors import (
     ToolTimeoutError,
 )
 
-
 ToolPolicy = Callable[[str, Dict[str, Any], ToolContext], None]
-# Policy should raise ToolPolicyError (or any Exception) to block execution.
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,6 +44,103 @@ class ToolCallRecord:
     tool_call_id: Optional[str] = None
 
 
+# ---------- Registry-level middleware types ----------
+
+RegistryCallNext = Callable[
+    [Tool[Any, Any], Dict[str, Any], ToolContext, Optional[float], Optional[str]],
+    Awaitable[ToolResult[Any]],
+]
+RegistryMiddlewareFn = Callable[..., Any]  # sync or async; we wrap via as_async
+
+
+def _infer_registry_middleware_style(fn: Callable[..., Any]) -> str:
+    """
+    Supported registry middleware signatures (sync OR async):
+
+      (call_next, tool, raw_args, ctx)
+      (call_next, tool, raw_args, ctx, timeout, tool_call_id)
+      (tool, raw_args, ctx, call_next)
+      (tool, raw_args, ctx, call_next, timeout, tool_call_id)
+
+    We keep it strict (no *args/**kwargs) so it’s predictable and fast.
+    """
+    sig = inspect.signature(fn)
+    params = list(sig.parameters.values())
+
+    if any(p.kind in (p.VAR_POSITIONAL, p.VAR_KEYWORD) for p in params):
+        raise ValueError(
+            f"Registry middleware '{getattr(fn, '__name__', 'unknown')}' cannot use *args/**kwargs."
+        )
+
+    if len(params) == 4:
+        # try to detect whether call_next is first or last
+        if params[0].name in ("call_next", "next") or "next" in params[0].name:
+            return "next_tool_args_ctx"
+        if params[3].name in ("call_next", "next") or "next" in params[3].name:
+            return "tool_args_ctx_next"
+        # fallback: assume first is next
+        return "next_tool_args_ctx"
+
+    if len(params) == 6:
+        if params[0].name in ("call_next", "next") or "next" in params[0].name:
+            return "next_tool_args_ctx_timeout_id"
+        if params[3].name in ("call_next", "next") or "next" in params[3].name:
+            return "tool_args_ctx_next_timeout_id"
+        return "next_tool_args_ctx_timeout_id"
+
+    raise ValueError(
+        f"Registry middleware '{getattr(fn, '__name__', 'unknown')}' must have 4 or 6 parameters. Got {sig}"
+    )
+
+
+class RegistryMiddleware:
+    """
+    Wraps ALL tool calls executed through the registry.
+
+    Use this for:
+      - logging / tracing
+      - global rate-limits / budgets
+      - common retries
+      - redaction / argument normalization
+      - tenant-wide policies (in addition to policy hook)
+
+    Supported fn signatures (sync OR async):
+
+      (call_next, tool, raw_args, ctx)
+      (call_next, tool, raw_args, ctx, timeout, tool_call_id)
+      (tool, raw_args, ctx, call_next)
+      (tool, raw_args, ctx, call_next, timeout, tool_call_id)
+
+    call_next: async (tool, raw_args, ctx, timeout, tool_call_id) -> ToolResult
+    """
+
+    def __init__(self, fn: RegistryMiddlewareFn, *, name: str | None = None) -> None:
+        self.name = name or getattr(fn, "__name__", "registry_middleware")
+        self._original_fn = fn
+        self.fn = as_async(fn)  # makes sync middleware work too
+        self._style = _infer_registry_middleware_style(fn)
+
+    async def __call__(
+        self,
+        call_next: RegistryCallNext,
+        tool: Tool[Any, Any],
+        raw_args: Dict[str, Any],
+        ctx: ToolContext,
+        timeout: float | None,
+        tool_call_id: str | None,
+    ) -> ToolResult[Any]:
+        if self._style == "next_tool_args_ctx":
+            return await self.fn(call_next, tool, raw_args, ctx)
+        if self._style == "tool_args_ctx_next":
+            return await self.fn(tool, raw_args, ctx, call_next)
+        if self._style == "next_tool_args_ctx_timeout_id":
+            return await self.fn(call_next, tool, raw_args, ctx, timeout, tool_call_id)
+        # tool_args_ctx_next_timeout_id
+        return await self.fn(tool, raw_args, ctx, call_next, timeout, tool_call_id)
+
+
+# ---------- ToolRegistry ----------
+
 class ToolRegistry:
     """
     Stores tools by name and provides safe async execution with:
@@ -51,6 +148,7 @@ class ToolRegistry:
       - registry-level default timeout
       - optional policy hook
       - optional plugin discovery via entry points
+      - registry-level middlewares (wrap ALL calls)
       - tool spec export for LLM tool-calling
     """
 
@@ -63,6 +161,7 @@ class ToolRegistry:
         enable_plugins: bool = False,
         plugin_entry_point_group: str = "afk.tools",
         allow_overwrite_plugins: bool = False,
+        middlewares: Optional[List[RegistryMiddleware | RegistryMiddlewareFn]] = None,
     ) -> None:
         if max_concurrency < 1:
             raise ValueError("max_concurrency must be >= 1")
@@ -72,6 +171,11 @@ class ToolRegistry:
         self._default_timeout = default_timeout
         self._policy = policy
         self._records: List[ToolCallRecord] = []
+        self._middlewares: List[RegistryMiddleware] = []
+
+        if middlewares:
+            for mw in middlewares:
+                self.add_middleware(mw)
 
         if enable_plugins:
             self.load_plugins(
@@ -79,9 +183,9 @@ class ToolRegistry:
                 overwrite=allow_overwrite_plugins,
             )
 
-    # ''''''''''''''''''''''''
+    # ''''''''''''''''''''''''''''''''''''''
     # Registration / discovery
-    # ''''''''''''''''''''''''
+    # ''''''''''''''''''''''''''''''''''''''
 
     def register(self, tool: Tool[Any, Any], *, overwrite: bool = False) -> None:
         name = tool.spec.name
@@ -137,7 +241,6 @@ class ToolRegistry:
                     tool_obj = maybe
 
             if tool_obj is None:
-                # Skip invalid plugin; you can choose to raise instead.
                 continue
 
             self.register(tool_obj, overwrite=overwrite)
@@ -145,9 +248,34 @@ class ToolRegistry:
 
         return loaded
 
-    # '''''''''
+    # ''''''''''''''''''''''''''''''''''''''
+    # Registry middlewares
+    # ''''''''''''''''''''''''''''''''''''''
+
+    def add_middleware(self, mw: RegistryMiddleware | RegistryMiddlewareFn) -> None:
+        """
+        Add a registry-level middleware.
+        You can pass a RegistryMiddleware instance OR a raw (sync/async) callable.
+        """
+        if isinstance(mw, RegistryMiddleware):
+            self._middlewares.append(mw)
+        else:
+            self._middlewares.append(RegistryMiddleware(mw))
+
+    def set_middlewares(self, mws: List[RegistryMiddleware | RegistryMiddlewareFn]) -> None:
+        self._middlewares = []
+        for mw in mws:
+            self.add_middleware(mw)
+
+    def clear_middlewares(self) -> None:
+        self._middlewares = []
+
+    def list_middlewares(self) -> List[str]:
+        return [mw.name for mw in self._middlewares]
+
+    # ''''''''''''''''''''''''''''''''''''''
     # Execution
-    # '''''''''
+    # ''''''''''''''''''''''''''''''''''''''
 
     async def call(
         self,
@@ -163,7 +291,7 @@ class ToolRegistry:
 
         Timeout precedence:
           1) call(timeout=...)
-          2) tool.default_timeout (Tool.default_timeout)
+          2) tool.default_timeout
           3) registry default_timeout
         """
         tool = self.get(name)
@@ -187,29 +315,47 @@ class ToolRegistry:
                 else (tool.default_timeout if tool.default_timeout is not None else self._default_timeout)
             )
 
+            async def _core_call(
+                t: Tool[Any, Any],
+                a: Dict[str, Any],
+                c: ToolContext,
+                to: float | None,
+                tcid: str | None,
+            ) -> ToolResult[Any]:
+                # NOTE: we intentionally pass timeout=None into Tool.call here,
+                # because we enforce registry-level timeout with asyncio.wait_for below
+                # to cover the entire middleware + tool stack.
+                if to is None:
+                    return await t.call(a, ctx=c, timeout=None, tool_call_id=tcid)
+
+                try:
+                    return await asyncio.wait_for(
+                        t.call(a, ctx=c, timeout=None, tool_call_id=tcid),
+                        timeout=to,
+                    )
+                except asyncio.TimeoutError as e:
+                    raise ToolTimeoutError(f"Tool '{t.spec.name}' timed out after {to} seconds.") from e
+
+            # Wrap with registry-level middleware chain
+            call_next: RegistryCallNext = _core_call
+            for mw in reversed(self._middlewares):
+                prev = call_next
+
+                async def _wrapped(
+                    t: Tool[Any, Any],
+                    a: Dict[str, Any],
+                    c: ToolContext,
+                    to: float | None,
+                    tcid: str | None,
+                    _mw=mw,
+                    _prev=prev,
+                ) -> ToolResult[Any]:
+                    return await _mw(_prev, t, a, c, to, tcid)
+
+                call_next = _wrapped
+
             try:
-                if effective_timeout is not None:
-                    try:
-                        res = await asyncio.wait_for(
-                            tool.call(raw_args, ctx=ctx, timeout=None, tool_call_id=tool_call_id),
-                            timeout=effective_timeout,
-                        )
-                    except asyncio.TimeoutError as e:
-                        self._records.append(
-                            ToolCallRecord(
-                                tool_name=name,
-                                started_at_s=started,
-                                ended_at_s=time.time(),
-                                ok=False,
-                                error="timeout",
-                                tool_call_id=tool_call_id,
-                            )
-                        )
-                        raise ToolTimeoutError(
-                            f"Tool '{name}' timed out after {effective_timeout} seconds."
-                        ) from e
-                else:
-                    res = await tool.call(raw_args, ctx=ctx, timeout=None, tool_call_id=tool_call_id)
+                res = await call_next(tool, raw_args, ctx, effective_timeout, tool_call_id)
 
                 self._records.append(
                     ToolCallRecord(
@@ -263,16 +409,16 @@ class ToolRegistry:
         results = await asyncio.gather(*tasks, return_exceptions=return_exceptions)
         return results  # type: ignore[return-value]
 
-    # '''''''''''''''''''''''
+    # ''''''''''''''''''''''''''''''''''''''
     # Observability
-    # '''''''''''''''''''''''
+    # ''''''''''''''''''''''''''''''''''''''
 
     def recent_calls(self, limit: int = 100) -> List[ToolCallRecord]:
         return self._records[-limit:]
 
-    # '''''''''''''''''''''''
+    # ''''''''''''''''''''''''''''''''''''''
     # Export / specs
-    # '''''''''''''''''''''''
+    # ''''''''''''''''''''''''''''''''''''''
 
     def specs(self) -> List[ToolSpec]:
         return [t.spec for t in self._tools.values()]
@@ -303,10 +449,4 @@ class ToolRegistry:
         """
         Lightweight listing for UIs / debugging.
         """
-        return [
-            {
-                "name": t.spec.name,
-                "description": t.spec.description,
-            }
-            for t in self._tools.values()
-        ]
+        return [{"name": t.spec.name, "description": t.spec.description} for t in self._tools.values()]

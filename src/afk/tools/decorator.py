@@ -6,6 +6,7 @@ Copyright (c) 2026 socioy
 See LICENSE file for full license text.
 
 This module provides decorators for defining tools, prehooks, posthooks, and middlewares in a concise way.
+It also supports registry-level middlewares via @registry_middleware.
 """
 
 import inspect
@@ -13,7 +14,7 @@ from typing import Any, Callable, Optional, Type, TypeVar
 
 from pydantic import BaseModel
 
-from .base import ( 
+from .base import (
     Middleware,
     PostHook,
     PreHook,
@@ -21,6 +22,11 @@ from .base import (
     ToolFn,
     ToolSpec,
 )
+
+# Registry-level middleware wrapper lives in registry.py
+# (Avoid importing ToolRegistry here to prevent heavy imports.)
+from .registry import RegistryMiddleware, RegistryMiddlewareFn  # noqa: E402
+
 
 ArgsT = TypeVar("ArgsT", bound=BaseModel)
 ReturnT = TypeVar("ReturnT")
@@ -95,6 +101,7 @@ def prehook(
 
     PreHook function should return a dict of transformed args compatible with the MAIN tool args_model.
     """
+
     def decorator(fn: ToolFn) -> PreHook[ArgsT, Any]:
         hook_name = name or getattr(fn, "__name__", "prehook")
         hook_desc = description or _default_description(fn, hook_name)
@@ -132,6 +139,7 @@ def posthook(
     AFK passes posthooks a payload dict like:
       {"output": <tool_output>, "tool_name": "<tool_name>"}
     """
+
     def decorator(fn: ToolFn) -> PostHook:
         hook_name = name or getattr(fn, "__name__", "posthook")
         hook_desc = description or _default_description(fn, hook_name)
@@ -157,7 +165,7 @@ def middleware(
     timeout: float | None = None,
 ) -> Callable[[ToolFn], Middleware[Any, Any]]:
     """
-    Create a Middleware from a sync/async function.
+    Create a Middleware from a sync/async function (tool-level middleware).
 
     Supported signatures (sync or async):
       fn(call_next, args)
@@ -167,13 +175,43 @@ def middleware(
 
     call_next is: async (args, ctx) -> output
     """
+
     def decorator(fn: ToolFn) -> Middleware[Any, Any]:
         mw_name = name or getattr(fn, "__name__", "middleware")
         mw_desc = description or _default_description(fn, mw_name)
 
-        # Middleware doesn’t have a strict args_model; keep schema empty.
+        # Tool-level middleware doesn't have a strict args model; keep schema empty.
         spec = ToolSpec(name=mw_name, description=mw_desc, parameters_schema={})
-
         return Middleware(spec=spec, fn=fn, default_timeout=timeout)
+
+    return decorator
+
+
+def registry_middleware(
+    *,
+    name: str | None = None,
+    description: str | None = None,
+) -> Callable[[RegistryMiddlewareFn], RegistryMiddleware]:
+    """
+    Create a registry-level middleware wrapper.
+
+    Supported signatures (sync OR async):
+
+      (call_next, tool, raw_args, ctx)
+      (call_next, tool, raw_args, ctx, timeout, tool_call_id)
+      (tool, raw_args, ctx, call_next)
+      (tool, raw_args, ctx, call_next, timeout, tool_call_id)
+
+    call_next is: async (tool, raw_args, ctx, timeout, tool_call_id) -> ToolResult
+    """
+
+    def decorator(fn: RegistryMiddlewareFn) -> RegistryMiddleware:
+        mw = RegistryMiddleware(fn, name=name or getattr(fn, "__name__", "registry_middleware"))
+        # RegistryMiddleware currently doesn't store description; keep it attached for debugging/introspection
+        if description:
+            setattr(mw, "description", description)
+        else:
+            setattr(mw, "description", _default_description(fn, getattr(mw, "name", "registry_middleware")))
+        return mw
 
     return decorator
