@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 """
 MIT License
 Copyright (c) 2026 socioy
@@ -22,7 +23,7 @@ try:
 except Exception:  # pragma: no cover
     import importlib_metadata  # type: ignore
 
-from .base import Tool, ToolContext, ToolResult, ToolSpec, as_async 
+from .base import Tool, ToolContext, ToolResult, ToolSpec, as_async
 
 from .errors import (
     ToolAlreadyRegisteredError,
@@ -97,28 +98,20 @@ class RegistryMiddleware:
     """
     Wraps ALL tool calls executed through the registry.
 
-    Use this for:
-      - logging / tracing
-      - global rate-limits / budgets
-      - common retries
-      - redaction / argument normalization
-      - tenant-wide policies (in addition to policy hook)
+    Supports sync OR async middleware functions.
 
-    Supported fn signatures (sync OR async):
-
-      (call_next, tool, raw_args, ctx)
-      (call_next, tool, raw_args, ctx, timeout, tool_call_id)
-      (tool, raw_args, ctx, call_next)
-      (tool, raw_args, ctx, call_next, timeout, tool_call_id)
-
-    call_next: async (tool, raw_args, ctx, timeout, tool_call_id) -> ToolResult
+    For SYNC middleware: call_next is provided as a SYNC callable that blocks
+    safely using run_coroutine_threadsafe on the running loop.
     """
 
     def __init__(self, fn: RegistryMiddlewareFn, *, name: str | None = None) -> None:
         self.name = name or getattr(fn, "__name__", "registry_middleware")
         self._original_fn = fn
-        self.fn = as_async(fn)  # makes sync middleware work too
+        self._is_async = asyncio.iscoroutinefunction(fn)
         self._style = _infer_registry_middleware_style(fn)
+
+        # Only wrap for async use if async; sync execution handled explicitly via to_thread.
+        self._fn_async = as_async(fn) if self._is_async else None
 
     async def __call__(
         self,
@@ -129,17 +122,54 @@ class RegistryMiddleware:
         timeout: float | None,
         tool_call_id: str | None,
     ) -> ToolResult[Any]:
-        if self._style == "next_tool_args_ctx":
-            return await self.fn(call_next, tool, raw_args, ctx)
-        if self._style == "tool_args_ctx_next":
-            return await self.fn(tool, raw_args, ctx, call_next)
-        if self._style == "next_tool_args_ctx_timeout_id":
-            return await self.fn(call_next, tool, raw_args, ctx, timeout, tool_call_id)
-        # tool_args_ctx_next_timeout_id
-        return await self.fn(tool, raw_args, ctx, call_next, timeout, tool_call_id)
+        if self._is_async:
+            # Async middleware: call_next stays async and everything is awaited normally
+            fn = self._fn_async  # type: ignore[assignment]
+            if self._style == "next_tool_args_ctx":
+                return await fn(call_next, tool, raw_args, ctx)
+            if self._style == "tool_args_ctx_next":
+                return await fn(tool, raw_args, ctx, call_next)
+            if self._style == "next_tool_args_ctx_timeout_id":
+                return await fn(call_next, tool, raw_args, ctx, timeout, tool_call_id)
+            return await fn(tool, raw_args, ctx, call_next, timeout, tool_call_id)
+
+        # Sync middleware: run in thread and provide a SYNC call_next that bridges to loop
+        loop = asyncio.get_running_loop()
+
+        def call_next_sync(
+            t: Tool[Any, Any],
+            a: Dict[str, Any],
+            c: ToolContext,
+            to: float | None,
+            tcid: str | None,
+        ) -> ToolResult[Any]:
+            fut = asyncio.run_coroutine_threadsafe(call_next(t, a, c, to, tcid), loop)
+            return fut.result()
+
+        def run_sync() -> ToolResult[Any]:
+            fn = self._original_fn  # sync callable
+
+            if self._style == "next_tool_args_ctx":
+                res = fn(call_next_sync, tool, raw_args, ctx)
+            elif self._style == "tool_args_ctx_next":
+                res = fn(tool, raw_args, ctx, call_next_sync)
+            elif self._style == "next_tool_args_ctx_timeout_id":
+                res = fn(call_next_sync, tool, raw_args, ctx, timeout, tool_call_id)
+            else:
+                res = fn(tool, raw_args, ctx, call_next_sync, timeout, tool_call_id)
+
+            # Safety: if a sync middleware accidentally returns an awaitable, resolve it on the loop.
+            if inspect.isawaitable(res):
+                fut = asyncio.run_coroutine_threadsafe(res, loop)
+                res = fut.result()
+
+            return res
+
+        return await asyncio.to_thread(run_sync)
 
 
 # ---------- ToolRegistry ----------
+
 
 class ToolRegistry:
     """
@@ -193,7 +223,9 @@ class ToolRegistry:
             raise ToolAlreadyRegisteredError(f"Tool already registered: {name}")
         self._tools[name] = tool
 
-    def register_many(self, tools: Iterable[Tool[Any, Any]], *, overwrite: bool = False) -> None:
+    def register_many(
+        self, tools: Iterable[Tool[Any, Any]], *, overwrite: bool = False
+    ) -> None:
         for t in tools:
             self.register(t, overwrite=overwrite)
 
@@ -215,7 +247,9 @@ class ToolRegistry:
     def has(self, name: str) -> bool:
         return name in self._tools
 
-    def load_plugins(self, *, entry_point_group: str = "afk.tools", overwrite: bool = False) -> int:
+    def load_plugins(
+        self, *, entry_point_group: str = "afk.tools", overwrite: bool = False
+    ) -> int:
         """
         Load Tool objects (or factories returning Tool) from Python entry points.
 
@@ -262,7 +296,9 @@ class ToolRegistry:
         else:
             self._middlewares.append(RegistryMiddleware(mw))
 
-    def set_middlewares(self, mws: List[RegistryMiddleware | RegistryMiddlewareFn]) -> None:
+    def set_middlewares(
+        self, mws: List[RegistryMiddleware | RegistryMiddlewareFn]
+    ) -> None:
         self._middlewares = []
         for mw in mws:
             self.add_middleware(mw)
@@ -312,7 +348,11 @@ class ToolRegistry:
             effective_timeout = (
                 timeout
                 if timeout is not None
-                else (tool.default_timeout if tool.default_timeout is not None else self._default_timeout)
+                else (
+                    tool.default_timeout
+                    if tool.default_timeout is not None
+                    else self._default_timeout
+                )
             )
 
             async def _core_call(
@@ -334,7 +374,9 @@ class ToolRegistry:
                         timeout=to,
                     )
                 except asyncio.TimeoutError as e:
-                    raise ToolTimeoutError(f"Tool '{t.spec.name}' timed out after {to} seconds.") from e
+                    raise ToolTimeoutError(
+                        f"Tool '{t.spec.name}' timed out after {to} seconds."
+                    ) from e
 
             # Wrap with registry-level middleware chain
             call_next: RegistryCallNext = _core_call
@@ -355,7 +397,9 @@ class ToolRegistry:
                 call_next = _wrapped
 
             try:
-                res = await call_next(tool, raw_args, ctx, effective_timeout, tool_call_id)
+                res = await call_next(
+                    tool, raw_args, ctx, effective_timeout, tool_call_id
+                )
 
                 self._records.append(
                     ToolCallRecord(
@@ -449,4 +493,7 @@ class ToolRegistry:
         """
         Lightweight listing for UIs / debugging.
         """
-        return [{"name": t.spec.name, "description": t.spec.description} for t in self._tools.values()]
+        return [
+            {"name": t.spec.name, "description": t.spec.description}
+            for t in self._tools.values()
+        ]

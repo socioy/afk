@@ -206,12 +206,18 @@ def registry_middleware(
     """
 
     def decorator(fn: RegistryMiddlewareFn) -> RegistryMiddleware:
-        mw = RegistryMiddleware(fn, name=name or getattr(fn, "__name__", "registry_middleware"))
+        mw = RegistryMiddleware(
+            fn, name=name or getattr(fn, "__name__", "registry_middleware")
+        )
         # RegistryMiddleware currently doesn't store description; keep it attached for debugging/introspection
         if description:
             setattr(mw, "description", description)
         else:
-            setattr(mw, "description", _default_description(fn, getattr(mw, "name", "registry_middleware")))
+            setattr(
+                mw,
+                "description",
+                _default_description(fn, getattr(mw, "name", "registry_middleware")),
+            )
         return mw
 
     return decorator

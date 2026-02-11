@@ -90,11 +90,6 @@ __all__ = [
     "to_litellm_tools_from_specs",
     "tool_to_litellm_tool",
     "toolspec_to_litellm_tool",
-    # export (optional aliases)
-    "to_openai_function_tools",
-    "to_openai_function_tools_from_specs",
-    "tool_to_openai_function_tool",
-    "toolspec_to_openai_function_tool",
     # errors
     "ToolAlreadyRegisteredError",
     "ToolExecutionError",

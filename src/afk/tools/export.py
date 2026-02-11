@@ -73,13 +73,6 @@ def to_litellm_tools_from_specs(specs: Iterable[ToolSpec]) -> List[Dict[str, Any
     return [toolspec_to_litellm_tool(s) for s in specs]
 
 
-
-toolspec_to_openai_function_tool = toolspec_to_litellm_tool
-tool_to_openai_function_tool = tool_to_litellm_tool
-to_openai_function_tools = to_litellm_tools
-to_openai_function_tools_from_specs = to_litellm_tools_from_specs
-
-
 def export_tools(
     tools: Iterable[Tool[Any, Any]],
     *,
