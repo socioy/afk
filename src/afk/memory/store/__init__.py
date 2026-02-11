@@ -1,5 +1,13 @@
 from __future__ import annotations
 
+"""
+MIT License
+Copyright (c) 2026 socioy
+See LICENSE file for full license text.
+
+This module provides memory store implementations and base contracts for the AFK memory subsystem.
+"""
+
 """Memory store implementations and base contracts."""
 
 from .base import MemoryCapabilities, MemoryStore
@@ -17,6 +25,7 @@ def __getattr__(name: str):
 
         return PostgresMemoryStore
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 __all__ = [
     "MemoryCapabilities",

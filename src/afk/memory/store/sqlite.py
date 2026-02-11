@@ -1,13 +1,27 @@
 from __future__ import annotations
 
-"""SQLite memory backend with JSON persistence and local vector search."""
+"""
+MIT License
+Copyright (c) 2026 socioy
+See LICENSE file for full license text.
+
+This module provides a SQLite memory backend with JSON persistence and local vector search.
+"""
 
 from typing import Optional, Sequence, cast
 
 import aiosqlite
 import numpy as np
 
-from ..models import JsonObject, JsonValue, LongTermMemory, MemoryEvent, json_dumps, json_loads, now_ms
+from ..models import (
+    JsonObject,
+    JsonValue,
+    LongTermMemory,
+    MemoryEvent,
+    json_dumps,
+    json_loads,
+    now_ms,
+)
 from ..vector import cosine_similarity
 from .base import MemoryCapabilities, MemoryStore
 
@@ -15,7 +29,9 @@ from .base import MemoryCapabilities, MemoryStore
 class SQLiteMemoryStore(MemoryStore):
     """Persistent local memory backend backed by SQLite."""
 
-    capabilities = MemoryCapabilities(text_search=True, vector_search=True, atomic_upsert=True, ttl=False)
+    capabilities = MemoryCapabilities(
+        text_search=True, vector_search=True, atomic_upsert=True, ttl=False
+    )
 
     def __init__(self, path: str = "afk_memory.sqlite3") -> None:
         super().__init__()
@@ -40,7 +56,9 @@ class SQLiteMemoryStore(MemoryStore):
 
     def _db(self) -> aiosqlite.Connection:
         if self._connection is None:
-            raise RuntimeError("SQLiteMemoryStore is not initialized. Call setup() first.")
+            raise RuntimeError(
+                "SQLiteMemoryStore is not initialized. Call setup() first."
+            )
         return self._connection
 
     async def _create_tables(self) -> None:
@@ -58,7 +76,9 @@ class SQLiteMemoryStore(MemoryStore):
             );
             """,
         )
-        await db.execute("CREATE INDEX IF NOT EXISTS idx_events_thread_time ON events(thread_id, timestamp DESC);")
+        await db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_events_thread_time ON events(thread_id, timestamp DESC);"
+        )
 
         await db.execute(
             """
@@ -88,7 +108,9 @@ class SQLiteMemoryStore(MemoryStore):
             );
             """,
         )
-        await db.execute("CREATE INDEX IF NOT EXISTS idx_ltm_user_scope_time ON long_term_memory(user_id, scope, updated_at DESC);")
+        await db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_ltm_user_scope_time ON long_term_memory(user_id, scope, updated_at DESC);"
+        )
 
     @staticmethod
     def _user_filter_sql(column_name: str = "user_id") -> str:
@@ -102,11 +124,21 @@ class SQLiteMemoryStore(MemoryStore):
             INSERT INTO events (id, thread_id, user_id, type, timestamp, payload_json, tags_json)
             VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-            (event.id, event.thread_id, event.user_id, event.type, event.timestamp, json_dumps(event.payload), json_dumps(event.tags)),
+            (
+                event.id,
+                event.thread_id,
+                event.user_id,
+                event.type,
+                event.timestamp,
+                json_dumps(event.payload),
+                json_dumps(event.tags),
+            ),
         )
         await db.commit()
 
-    async def get_recent_events(self, thread_id: str, limit: int = 50) -> list[MemoryEvent]:
+    async def get_recent_events(
+        self, thread_id: str, limit: int = 50
+    ) -> list[MemoryEvent]:
         self._ensure_setup()
         db = self._db()
         cursor = await db.execute(
@@ -117,7 +149,9 @@ class SQLiteMemoryStore(MemoryStore):
         events = [self._row_to_event(row) for row in rows]
         return events[::-1]
 
-    async def get_events_since(self, thread_id: str, since_ms: int, limit: int = 500) -> list[MemoryEvent]:
+    async def get_events_since(
+        self, thread_id: str, since_ms: int, limit: int = 500
+    ) -> list[MemoryEvent]:
         self._ensure_setup()
         db = self._db()
         cursor = await db.execute(
@@ -145,13 +179,18 @@ class SQLiteMemoryStore(MemoryStore):
     async def get_state(self, thread_id: str, key: str) -> JsonValue | None:
         self._ensure_setup()
         db = self._db()
-        cursor = await db.execute("SELECT value_json FROM state_kv WHERE thread_id=? AND key=?", (thread_id, key))
+        cursor = await db.execute(
+            "SELECT value_json FROM state_kv WHERE thread_id=? AND key=?",
+            (thread_id, key),
+        )
         row = await cursor.fetchone()
         if row is None:
             return None
         return json_loads(cast(str, row["value_json"]))
 
-    async def list_state(self, thread_id: str, prefix: str | None = None) -> dict[str, JsonValue]:
+    async def list_state(
+        self, thread_id: str, prefix: str | None = None
+    ) -> dict[str, JsonValue]:
         self._ensure_setup()
         db = self._db()
         if prefix:
@@ -160,9 +199,15 @@ class SQLiteMemoryStore(MemoryStore):
                 (thread_id, f"{prefix}%"),
             )
         else:
-            cursor = await db.execute("SELECT key, value_json FROM state_kv WHERE thread_id=? ORDER BY key ASC", (thread_id,))
+            cursor = await db.execute(
+                "SELECT key, value_json FROM state_kv WHERE thread_id=? ORDER BY key ASC",
+                (thread_id,),
+            )
         rows = await cursor.fetchall()
-        return {cast(str, row["key"]): json_loads(cast(str, row["value_json"])) for row in rows}
+        return {
+            cast(str, row["key"]): json_loads(cast(str, row["value_json"]))
+            for row in rows
+        }
 
     async def upsert_long_term_memory(
         self,
@@ -172,7 +217,11 @@ class SQLiteMemoryStore(MemoryStore):
     ) -> None:
         self._ensure_setup()
         db = self._db()
-        serialized_embedding = None if embedding is None else json_dumps([float(value) for value in embedding])
+        serialized_embedding = (
+            None
+            if embedding is None
+            else json_dumps([float(value) for value in embedding])
+        )
         await db.execute(
             """
             INSERT INTO long_term_memory (id, user_id, scope, data_json, text, tags_json, metadata_json, created_at, updated_at, embedding_json)
@@ -203,13 +252,21 @@ class SQLiteMemoryStore(MemoryStore):
         )
         await db.commit()
 
-    async def delete_long_term_memory(self, user_id: str | None, memory_id: str) -> None:
+    async def delete_long_term_memory(
+        self, user_id: str | None, memory_id: str
+    ) -> None:
         self._ensure_setup()
         db = self._db()
         if user_id is None:
-            await db.execute("DELETE FROM long_term_memory WHERE id=? AND user_id IS NULL", (memory_id,))
+            await db.execute(
+                "DELETE FROM long_term_memory WHERE id=? AND user_id IS NULL",
+                (memory_id,),
+            )
         else:
-            await db.execute("DELETE FROM long_term_memory WHERE id=? AND user_id=?", (memory_id, user_id))
+            await db.execute(
+                "DELETE FROM long_term_memory WHERE id=? AND user_id=?",
+                (memory_id, user_id),
+            )
         await db.commit()
 
     async def list_long_term_memories(
@@ -243,13 +300,19 @@ class SQLiteMemoryStore(MemoryStore):
         normalized_query = query.strip().lower()
         if not normalized_query:
             return []
-        candidates = await self.list_long_term_memories(user_id=user_id, scope=scope, limit=10_000)
+        candidates = await self.list_long_term_memories(
+            user_id=user_id, scope=scope, limit=10_000
+        )
         ranked: list[tuple[int, int, LongTermMemory]] = []
         for memory in candidates:
-            searchable_text = " ".join([(memory.text or ""), " ".join(memory.tags), json_dumps(memory.data)]).lower()
+            searchable_text = " ".join(
+                [(memory.text or ""), " ".join(memory.tags), json_dumps(memory.data)]
+            ).lower()
             if normalized_query not in searchable_text:
                 continue
-            ranked.append((searchable_text.find(normalized_query), -memory.updated_at, memory))
+            ranked.append(
+                (searchable_text.find(normalized_query), -memory.updated_at, memory)
+            )
         ranked.sort(key=lambda item: (item[0], item[1]))
         return [memory for _, _, memory in ranked[:limit]]
 
@@ -270,7 +333,9 @@ class SQLiteMemoryStore(MemoryStore):
         if scope is not None:
             where_clause = f"{where_clause} AND scope=?"
             params.append(scope)
-        cursor = await db.execute(f"SELECT * FROM long_term_memory WHERE {where_clause}", tuple(params))
+        cursor = await db.execute(
+            f"SELECT * FROM long_term_memory WHERE {where_clause}", tuple(params)
+        )
         rows = await cursor.fetchall()
 
         ranked: list[tuple[LongTermMemory, float]] = []
@@ -282,7 +347,9 @@ class SQLiteMemoryStore(MemoryStore):
             if not isinstance(embedding, list):
                 continue
             try:
-                similarity = cosine_similarity(query_values, np.asarray(embedding, dtype=np.float64))
+                similarity = cosine_similarity(
+                    query_values, np.asarray(embedding, dtype=np.float64)
+                )
             except ValueError:
                 continue
             if min_score is not None and similarity < min_score:

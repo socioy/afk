@@ -1,6 +1,12 @@
 from __future__ import annotations
 
-"""In-process memory store implementation for local development and tests."""
+"""
+MIT License
+Copyright (c) 2026 socioy
+See LICENSE file for full license text.
+
+This module provides an in-process memory store implementation for local development and tests.
+"""
 
 import asyncio
 from typing import Optional, Sequence
@@ -15,7 +21,9 @@ from .base import MemoryCapabilities, MemoryStore
 class InMemoryMemoryStore(MemoryStore):
     """Fast, process-local memory backend with full text/vector retrieval support."""
 
-    capabilities = MemoryCapabilities(text_search=True, vector_search=True, atomic_upsert=True, ttl=False)
+    capabilities = MemoryCapabilities(
+        text_search=True, vector_search=True, atomic_upsert=True, ttl=False
+    )
 
     def __init__(self) -> None:
         super().__init__()
@@ -30,15 +38,23 @@ class InMemoryMemoryStore(MemoryStore):
         async with self._lock:
             self._events_by_thread.setdefault(event.thread_id, []).append(event)
 
-    async def get_recent_events(self, thread_id: str, limit: int = 50) -> list[MemoryEvent]:
+    async def get_recent_events(
+        self, thread_id: str, limit: int = 50
+    ) -> list[MemoryEvent]:
         self._ensure_setup()
         async with self._lock:
             return list(self._events_by_thread.get(thread_id, [])[-limit:])
 
-    async def get_events_since(self, thread_id: str, since_ms: int, limit: int = 500) -> list[MemoryEvent]:
+    async def get_events_since(
+        self, thread_id: str, since_ms: int, limit: int = 500
+    ) -> list[MemoryEvent]:
         self._ensure_setup()
         async with self._lock:
-            matches = [event for event in self._events_by_thread.get(thread_id, []) if event.timestamp >= since_ms]
+            matches = [
+                event
+                for event in self._events_by_thread.get(thread_id, [])
+                if event.timestamp >= since_ms
+            ]
             return matches[:limit]
 
     async def put_state(self, thread_id: str, key: str, value: JsonValue) -> None:
@@ -51,11 +67,16 @@ class InMemoryMemoryStore(MemoryStore):
         async with self._lock:
             return self._state_by_thread_key.get((thread_id, key))
 
-    async def list_state(self, thread_id: str, prefix: str | None = None) -> dict[str, JsonValue]:
+    async def list_state(
+        self, thread_id: str, prefix: str | None = None
+    ) -> dict[str, JsonValue]:
         self._ensure_setup()
         async with self._lock:
             filtered_state: dict[str, JsonValue] = {}
-            for (candidate_thread_id, state_key), state_value in self._state_by_thread_key.items():
+            for (
+                candidate_thread_id,
+                state_key,
+            ), state_value in self._state_by_thread_key.items():
                 if candidate_thread_id != thread_id:
                     continue
                 if prefix is not None and not state_key.startswith(prefix):
@@ -73,9 +94,13 @@ class InMemoryMemoryStore(MemoryStore):
         async with self._lock:
             self._memory_by_id[memory.id] = memory
             if embedding is not None:
-                self._embedding_by_memory_id[memory.id] = np.asarray(embedding, dtype=np.float64)
+                self._embedding_by_memory_id[memory.id] = np.asarray(
+                    embedding, dtype=np.float64
+                )
 
-    async def delete_long_term_memory(self, user_id: str | None, memory_id: str) -> None:
+    async def delete_long_term_memory(
+        self, user_id: str | None, memory_id: str
+    ) -> None:
         self._ensure_setup()
         async with self._lock:
             memory = self._memory_by_id.get(memory_id)
@@ -95,7 +120,11 @@ class InMemoryMemoryStore(MemoryStore):
     ) -> list[LongTermMemory]:
         self._ensure_setup()
         async with self._lock:
-            candidates = [memory for memory in self._memory_by_id.values() if memory.user_id == user_id]
+            candidates = [
+                memory
+                for memory in self._memory_by_id.values()
+                if memory.user_id == user_id
+            ]
             if scope is not None:
                 candidates = [memory for memory in candidates if memory.scope == scope]
             candidates.sort(key=lambda memory: memory.updated_at, reverse=True)
@@ -115,7 +144,11 @@ class InMemoryMemoryStore(MemoryStore):
             return []
 
         async with self._lock:
-            candidates = [memory for memory in self._memory_by_id.values() if memory.user_id == user_id]
+            candidates = [
+                memory
+                for memory in self._memory_by_id.values()
+                if memory.user_id == user_id
+            ]
             if scope is not None:
                 candidates = [memory for memory in candidates if memory.scope == scope]
 
@@ -148,7 +181,11 @@ class InMemoryMemoryStore(MemoryStore):
         self._ensure_setup()
         query_values = np.asarray(query_embedding, dtype=np.float64)
         async with self._lock:
-            candidates = [memory for memory in self._memory_by_id.values() if memory.user_id == user_id]
+            candidates = [
+                memory
+                for memory in self._memory_by_id.values()
+                if memory.user_id == user_id
+            ]
             if scope is not None:
                 candidates = [memory for memory in candidates if memory.scope == scope]
 

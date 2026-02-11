@@ -1,9 +1,20 @@
 from __future__ import annotations
 
-"""Public API for AFK memory models, stores, and factory helpers."""
+"""
+MIT License
+Copyright (c) 2026 socioy
+See LICENSE file for full license text.
+
+This module provides the public API for the AFK memory subsystem, including models, stores, and utilities.
+"""
 
 from .models import JsonObject, JsonValue, LongTermMemory, MemoryEvent, now_ms, new_id
-from .store import InMemoryMemoryStore, MemoryCapabilities, MemoryStore, SQLiteMemoryStore
+from .store import (
+    InMemoryMemoryStore,
+    MemoryCapabilities,
+    MemoryStore,
+    SQLiteMemoryStore,
+)
 from .vector import cosine_similarity
 from .factory import create_memory_store_from_env
 
@@ -18,6 +29,7 @@ def __getattr__(name: str):
 
         return PostgresMemoryStore
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 __all__ = [
     "JsonValue",

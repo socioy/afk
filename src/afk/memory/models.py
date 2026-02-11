@@ -1,6 +1,12 @@
 from __future__ import annotations
 
-"""Core data models and JSON helpers for the AFK memory subsystem."""
+"""
+MIT License
+Copyright (c) 2026 socioy
+See LICENSE file for full license text.
+
+This module defines core data models and JSON helpers for the AFK memory subsystem.
+"""
 
 from dataclasses import dataclass, field
 import json

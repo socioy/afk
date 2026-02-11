@@ -1,6 +1,12 @@
 from __future__ import annotations
 
-"""Abstract interfaces and shared capabilities for memory store backends."""
+"""
+MIT License
+Copyright (c) 2026 socioy
+See LICENSE file for full license text.
+
+This module defines abstract interfaces and shared capabilities for memory store backends.
+"""
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -51,18 +57,24 @@ class MemoryStore(ABC):
 
     def _ensure_setup(self) -> None:
         if not self._is_setup:
-            raise RuntimeError("MemoryStore is not initialized. Call setup() or use `async with`.")
+            raise RuntimeError(
+                "MemoryStore is not initialized. Call setup() or use `async with`."
+            )
 
     @abstractmethod
     async def append_event(self, event: MemoryEvent) -> None:
         """Append one event for a thread."""
 
     @abstractmethod
-    async def get_recent_events(self, thread_id: str, limit: int = 50) -> list[MemoryEvent]:
+    async def get_recent_events(
+        self, thread_id: str, limit: int = 50
+    ) -> list[MemoryEvent]:
         """Return recent events for a thread in chronological order."""
 
     @abstractmethod
-    async def get_events_since(self, thread_id: str, since_ms: int, limit: int = 500) -> list[MemoryEvent]:
+    async def get_events_since(
+        self, thread_id: str, since_ms: int, limit: int = 500
+    ) -> list[MemoryEvent]:
         """Return events newer than `since_ms` in chronological order."""
 
     @abstractmethod
@@ -74,7 +86,9 @@ class MemoryStore(ABC):
         """Return state value for a thread-scoped key."""
 
     @abstractmethod
-    async def list_state(self, thread_id: str, prefix: str | None = None) -> dict[str, JsonValue]:
+    async def list_state(
+        self, thread_id: str, prefix: str | None = None
+    ) -> dict[str, JsonValue]:
         """List thread-scoped state, optionally by key prefix."""
 
     @abstractmethod
@@ -87,7 +101,9 @@ class MemoryStore(ABC):
         """Insert or update one long-term memory record."""
 
     @abstractmethod
-    async def delete_long_term_memory(self, user_id: Optional[str], memory_id: str) -> None:
+    async def delete_long_term_memory(
+        self, user_id: Optional[str], memory_id: str
+    ) -> None:
         """Delete one long-term memory record."""
 
     @abstractmethod

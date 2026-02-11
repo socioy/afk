@@ -1,12 +1,25 @@
 from __future__ import annotations
 
-"""PostgreSQL + pgvector memory backend for production workloads."""
+"""
+MIT License
+Copyright (c) 2026 socioy
+See LICENSE file for full license text.
+
+This module provides a PostgreSQL + pgvector memory backend for production workloads.
+"""
 
 from typing import Optional, Sequence, cast
 
 import asyncpg
 
-from ..models import JsonObject, JsonValue, LongTermMemory, MemoryEvent, json_dumps, now_ms
+from ..models import (
+    JsonObject,
+    JsonValue,
+    LongTermMemory,
+    MemoryEvent,
+    json_dumps,
+    now_ms,
+)
 from ..vector import format_pgvector
 from .base import MemoryCapabilities, MemoryStore
 
@@ -14,7 +27,9 @@ from .base import MemoryCapabilities, MemoryStore
 class PostgresMemoryStore(MemoryStore):
     """Production-grade memory store with JSONB and pgvector similarity search."""
 
-    capabilities = MemoryCapabilities(text_search=True, vector_search=True, atomic_upsert=True, ttl=False)
+    capabilities = MemoryCapabilities(
+        text_search=True, vector_search=True, atomic_upsert=True, ttl=False
+    )
 
     def __init__(
         self,
@@ -51,7 +66,9 @@ class PostgresMemoryStore(MemoryStore):
 
     def _pool_required(self) -> asyncpg.Pool:
         if self._pool is None:
-            raise RuntimeError("PostgresMemoryStore is not initialized. Call setup() first.")
+            raise RuntimeError(
+                "PostgresMemoryStore is not initialized. Call setup() first."
+            )
         return self._pool
 
     async def _create_schema(self) -> None:
@@ -71,7 +88,9 @@ class PostgresMemoryStore(MemoryStore):
                 );
                 """,
             )
-            await connection.execute("CREATE INDEX IF NOT EXISTS idx_events_thread_time ON events(thread_id, timestamp DESC);")
+            await connection.execute(
+                "CREATE INDEX IF NOT EXISTS idx_events_thread_time ON events(thread_id, timestamp DESC);"
+            )
             await connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS state_kv (
@@ -99,7 +118,9 @@ class PostgresMemoryStore(MemoryStore):
                 );
                 """,
             )
-            await connection.execute("CREATE INDEX IF NOT EXISTS idx_ltm_user_scope_time ON long_term_memory(user_id, scope, updated_at DESC);")
+            await connection.execute(
+                "CREATE INDEX IF NOT EXISTS idx_ltm_user_scope_time ON long_term_memory(user_id, scope, updated_at DESC);"
+            )
             try:
                 await connection.execute(
                     """
@@ -130,7 +151,9 @@ class PostgresMemoryStore(MemoryStore):
                 json_dumps(event.tags),
             )
 
-    async def get_recent_events(self, thread_id: str, limit: int = 50) -> list[MemoryEvent]:
+    async def get_recent_events(
+        self, thread_id: str, limit: int = 50
+    ) -> list[MemoryEvent]:
         self._ensure_setup()
         pool = self._pool_required()
         async with pool.acquire() as connection:
@@ -141,7 +164,9 @@ class PostgresMemoryStore(MemoryStore):
             )
         return [self._record_to_event(record) for record in reversed(rows)]
 
-    async def get_events_since(self, thread_id: str, since_ms: int, limit: int = 500) -> list[MemoryEvent]:
+    async def get_events_since(
+        self, thread_id: str, since_ms: int, limit: int = 500
+    ) -> list[MemoryEvent]:
         self._ensure_setup()
         pool = self._pool_required()
         async with pool.acquire() as connection:
@@ -175,12 +200,18 @@ class PostgresMemoryStore(MemoryStore):
         self._ensure_setup()
         pool = self._pool_required()
         async with pool.acquire() as connection:
-            row = await connection.fetchrow("SELECT value_json FROM state_kv WHERE thread_id=$1 AND key=$2", thread_id, key)
+            row = await connection.fetchrow(
+                "SELECT value_json FROM state_kv WHERE thread_id=$1 AND key=$2",
+                thread_id,
+                key,
+            )
         if row is None:
             return None
         return cast(JsonValue, row["value_json"])
 
-    async def list_state(self, thread_id: str, prefix: str | None = None) -> dict[str, JsonValue]:
+    async def list_state(
+        self, thread_id: str, prefix: str | None = None
+    ) -> dict[str, JsonValue]:
         self._ensure_setup()
         pool = self._pool_required()
         async with pool.acquire() as connection:
@@ -191,8 +222,13 @@ class PostgresMemoryStore(MemoryStore):
                     f"{prefix}%",
                 )
             else:
-                rows = await connection.fetch("SELECT key, value_json FROM state_kv WHERE thread_id=$1 ORDER BY key ASC", thread_id)
-        return {cast(str, row["key"]): cast(JsonValue, row["value_json"]) for row in rows}
+                rows = await connection.fetch(
+                    "SELECT key, value_json FROM state_kv WHERE thread_id=$1 ORDER BY key ASC",
+                    thread_id,
+                )
+        return {
+            cast(str, row["key"]): cast(JsonValue, row["value_json"]) for row in rows
+        }
 
     async def upsert_long_term_memory(
         self,
@@ -257,7 +293,9 @@ class PostgresMemoryStore(MemoryStore):
                     format_pgvector(embedding),
                 )
 
-    async def delete_long_term_memory(self, user_id: str | None, memory_id: str) -> None:
+    async def delete_long_term_memory(
+        self, user_id: str | None, memory_id: str
+    ) -> None:
         self._ensure_setup()
         pool = self._pool_required()
         async with pool.acquire() as connection:

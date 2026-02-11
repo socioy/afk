@@ -1,13 +1,26 @@
 from __future__ import annotations
 
-"""Redis memory backend optimized for low-latency state and event operations."""
+"""
+MIT License
+Copyright (c) 2026 socioy
+See LICENSE file for full license text.
+
+This module provides a Redis memory backend optimized for low-latency state and event operations.
+"""
 
 from typing import Optional, Sequence, cast
 
 import numpy as np
 from redis.asyncio import Redis
 
-from ..models import JsonObject, JsonValue, LongTermMemory, MemoryEvent, json_dumps, json_loads
+from ..models import (
+    JsonObject,
+    JsonValue,
+    LongTermMemory,
+    MemoryEvent,
+    json_dumps,
+    json_loads,
+)
 from ..vector import cosine_similarity
 from .base import MemoryCapabilities, MemoryStore
 
@@ -15,7 +28,9 @@ from .base import MemoryCapabilities, MemoryStore
 class RedisMemoryStore(MemoryStore):
     """Redis-backed memory store using hashes for state/memories and lists for events."""
 
-    capabilities = MemoryCapabilities(text_search=True, vector_search=True, atomic_upsert=True, ttl=True)
+    capabilities = MemoryCapabilities(
+        text_search=True, vector_search=True, atomic_upsert=True, ttl=True
+    )
 
     def __init__(self, *, url: str, events_max_per_thread: int = 2_000) -> None:
         super().__init__()
@@ -36,7 +51,9 @@ class RedisMemoryStore(MemoryStore):
 
     def _redis(self) -> Redis:
         if self._redis_client is None:
-            raise RuntimeError("RedisMemoryStore is not initialized. Call setup() first.")
+            raise RuntimeError(
+                "RedisMemoryStore is not initialized. Call setup() first."
+            )
         return self._redis_client
 
     @staticmethod
@@ -72,16 +89,24 @@ class RedisMemoryStore(MemoryStore):
         pipeline.ltrim(events_key, 0, self.events_max_per_thread - 1)
         await pipeline.execute()
 
-    async def get_recent_events(self, thread_id: str, limit: int = 50) -> list[MemoryEvent]:
+    async def get_recent_events(
+        self, thread_id: str, limit: int = 50
+    ) -> list[MemoryEvent]:
         self._ensure_setup()
         redis_client = self._redis()
-        serialized_events = await redis_client.lrange(self._events_key(thread_id), 0, max(0, limit - 1))
+        serialized_events = await redis_client.lrange(
+            self._events_key(thread_id), 0, max(0, limit - 1)
+        )
         chronological_events = list(reversed(serialized_events))
         return [self._deserialize_event(payload) for payload in chronological_events]
 
-    async def get_events_since(self, thread_id: str, since_ms: int, limit: int = 500) -> list[MemoryEvent]:
+    async def get_events_since(
+        self, thread_id: str, since_ms: int, limit: int = 500
+    ) -> list[MemoryEvent]:
         self._ensure_setup()
-        events = await self.get_recent_events(thread_id, limit=self.events_max_per_thread)
+        events = await self.get_recent_events(
+            thread_id, limit=self.events_max_per_thread
+        )
         matches = [event for event in events if event.timestamp >= since_ms]
         return matches[:limit]
 
@@ -98,7 +123,9 @@ class RedisMemoryStore(MemoryStore):
             return None
         return json_loads(value)
 
-    async def list_state(self, thread_id: str, prefix: str | None = None) -> dict[str, JsonValue]:
+    async def list_state(
+        self, thread_id: str, prefix: str | None = None
+    ) -> dict[str, JsonValue]:
         self._ensure_setup()
         redis_client = self._redis()
         raw_values = await redis_client.hgetall(self._state_key(thread_id))
@@ -138,11 +165,15 @@ class RedisMemoryStore(MemoryStore):
             "metadata": memory.metadata,
             "created_at": memory.created_at,
             "updated_at": memory.updated_at,
-            "embedding": existing_embedding if embedding is None else [float(value) for value in embedding],
+            "embedding": existing_embedding
+            if embedding is None
+            else [float(value) for value in embedding],
         }
         await redis_client.hset(hash_key, memory.id, json_dumps(payload))
 
-    async def delete_long_term_memory(self, user_id: str | None, memory_id: str) -> None:
+    async def delete_long_term_memory(
+        self, user_id: str | None, memory_id: str
+    ) -> None:
         self._ensure_setup()
         redis_client = self._redis()
         await redis_client.hdel(self._memory_hash_key(user_id), memory_id)
@@ -179,13 +210,19 @@ class RedisMemoryStore(MemoryStore):
         normalized_query = query.strip().lower()
         if not normalized_query:
             return []
-        memories = await self.list_long_term_memories(user_id=user_id, scope=scope, limit=10_000)
+        memories = await self.list_long_term_memories(
+            user_id=user_id, scope=scope, limit=10_000
+        )
         ranked: list[tuple[int, int, LongTermMemory]] = []
         for memory in memories:
-            searchable_text = " ".join([(memory.text or ""), " ".join(memory.tags), json_dumps(memory.data)]).lower()
+            searchable_text = " ".join(
+                [(memory.text or ""), " ".join(memory.tags), json_dumps(memory.data)]
+            ).lower()
             if normalized_query not in searchable_text:
                 continue
-            ranked.append((searchable_text.find(normalized_query), -memory.updated_at, memory))
+            ranked.append(
+                (searchable_text.find(normalized_query), -memory.updated_at, memory)
+            )
         ranked.sort(key=lambda item: (item[0], item[1]))
         return [memory for _, _, memory in ranked[:limit]]
 
@@ -214,7 +251,9 @@ class RedisMemoryStore(MemoryStore):
             if not isinstance(embedding, list):
                 continue
             try:
-                similarity = cosine_similarity(query_values, np.asarray(embedding, dtype=np.float64))
+                similarity = cosine_similarity(
+                    query_values, np.asarray(embedding, dtype=np.float64)
+                )
             except ValueError:
                 continue
             if min_score is not None and similarity < min_score:

@@ -1,5 +1,13 @@
 from __future__ import annotations
 
+"""
+MIT License
+Copyright (c) 2026 socioy
+See LICENSE file for full license text.
+
+This module provides factory functions for creating memory store backends based on environment variables.
+"""
+
 import os
 
 from .store.base import MemoryStore
@@ -35,7 +43,11 @@ def create_memory_store_from_env() -> MemoryStore:
             port = os.getenv("AFK_REDIS_PORT", "6379")
             db = os.getenv("AFK_REDIS_DB", "0")
             password = os.getenv("AFK_REDIS_PASSWORD", "")
-            url = f"redis://:{password}@{host}:{port}/{db}" if password else f"redis://{host}:{port}/{db}"
+            url = (
+                f"redis://:{password}@{host}:{port}/{db}"
+                if password
+                else f"redis://{host}:{port}/{db}"
+            )
         max_events = int(os.getenv("AFK_REDIS_EVENTS_MAX", "2000"))
         return RedisMemoryStore(url=url, events_max_per_thread=max_events)
 
@@ -58,8 +70,12 @@ def create_memory_store_from_env() -> MemoryStore:
 
         dim = os.getenv("AFK_VECTOR_DIM")
         if not dim:
-            raise ValueError("AFK_VECTOR_DIM is required for Postgres vector search (e.g. 1536).")
+            raise ValueError(
+                "AFK_VECTOR_DIM is required for Postgres vector search (e.g. 1536)."
+            )
 
-        return PostgresMemoryStore(dsn=dsn, vector_dim=int(dim), pool_min=pool_min, pool_max=pool_max, ssl=ssl)
+        return PostgresMemoryStore(
+            dsn=dsn, vector_dim=int(dim), pool_min=pool_min, pool_max=pool_max, ssl=ssl
+        )
 
     raise ValueError(f"Unknown AFK_MEMORY_BACKEND: {backend}")
