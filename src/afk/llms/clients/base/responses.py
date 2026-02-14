@@ -49,6 +49,7 @@ class ResponsesClientBase(LLM):
         tool_calling=True,
         structured_output=True,
         embeddings=True,
+        idempotency=True,
     )
 
     @property
@@ -144,6 +145,7 @@ class ResponsesClientBase(LLM):
             else:
                 response = LLMResponse(
                     text="".join(text_chunks),
+                    request_id=req.request_id,
                     tool_calls=finalize_stream_tool_calls(tool_buffers),
                     finish_reason=None,
                     usage=Usage(),
@@ -164,6 +166,8 @@ class ResponsesClientBase(LLM):
         }
         if req.timeout_s is not None:
             payload["timeout"] = req.timeout_s
+        if req.metadata:
+            payload["metadata"] = req.metadata
 
         payload.update(req.extra)
 
@@ -206,6 +210,8 @@ class ResponsesClientBase(LLM):
             payload["temperature"] = req.temperature
         if req.top_p is not None:
             payload["top_p"] = req.top_p
+        if req.stop is not None:
+            payload["stop"] = req.stop
 
         reasoning: dict[str, Any] = {}
         if thinking.effort is not None:
@@ -224,8 +230,18 @@ class ResponsesClientBase(LLM):
         if req.tool_choice is not None:
             payload["tool_choice"] = self._tool_choice_to_responses_tool_choice(req.tool_choice)
 
-        if req.metadata:
-            payload["metadata"] = req.metadata
+        metadata = dict(req.metadata)
+        if req.request_id is not None:
+            metadata.setdefault("afk_request_id", req.request_id)
+        if req.session_token is not None:
+            metadata.setdefault("afk_session_token", req.session_token)
+        if req.checkpoint_token is not None:
+            metadata.setdefault("afk_checkpoint_token", req.checkpoint_token)
+        if metadata:
+            payload["metadata"] = metadata
+
+        if req.idempotency_key is not None:
+            payload["idempotency_key"] = req.idempotency_key
 
         if response_model is not None:
             payload.update(self._structured_output_payload(response_model))
@@ -312,8 +328,32 @@ class ResponsesClientBase(LLM):
         if not isinstance(finish_reason, str):
             finish_reason = None
 
+        metadata = raw_dict.get("metadata")
+        metadata_dict = metadata if isinstance(metadata, dict) else {}
+
+        request_id = metadata_dict.get("afk_request_id")
+        if not isinstance(request_id, str):
+            maybe_request_id = raw_dict.get("request_id")
+            request_id = maybe_request_id if isinstance(maybe_request_id, str) else None
+
+        provider_request_id = raw_dict.get("id")
+        if not isinstance(provider_request_id, str):
+            provider_request_id = None
+
+        session_token = metadata_dict.get("afk_session_token")
+        if not isinstance(session_token, str):
+            session_token = None
+
+        checkpoint_token = metadata_dict.get("afk_checkpoint_token")
+        if not isinstance(checkpoint_token, str):
+            checkpoint_token = None
+
         return LLMResponse(
             text=text,
+            request_id=request_id,
+            provider_request_id=provider_request_id,
+            session_token=session_token,
+            checkpoint_token=checkpoint_token,
             structured_response=structured_response,
             tool_calls=tool_calls,
             finish_reason=finish_reason,

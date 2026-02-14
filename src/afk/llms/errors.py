@@ -48,3 +48,27 @@ class LLMCapabilityError(LLMError):
     """
 
     pass
+
+
+class LLMCancelledError(LLMError):
+    """Raised when an in-flight streaming request is cancelled by caller."""
+
+    pass
+
+
+class LLMInterruptedError(LLMError):
+    """Raised when an in-flight request is interrupted by provider/user action."""
+
+    pass
+
+
+class LLMSessionError(LLMError):
+    """Raised for invalid session lifecycle operations."""
+
+    pass
+
+
+class LLMSessionPausedError(LLMSessionError):
+    """Raised when a session call is attempted while the session is paused."""
+
+    pass

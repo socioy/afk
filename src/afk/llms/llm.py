@@ -7,22 +7,31 @@ See LICENSE file for full license text.
 """
 
 import asyncio
+import inspect
 import json
 import socket
+import time
+import uuid
 from abc import ABC, abstractmethod
 from dataclasses import replace
-from typing import Any, AsyncIterator, Awaitable, Callable, Mapping, TypeVar
+from typing import Any, AsyncIterator, Awaitable, Callable, Mapping, TypeVar, cast
 
 from pydantic import BaseModel, ValidationError
 
 from .config import LLMConfig
 from .errors import (
     LLMCapabilityError,
+    LLMCancelledError,
+    LLMConfigurationError,
     LLMError,
+    LLMInterruptedError,
     LLMInvalidResponseError,
     LLMRetryableError,
+    LLMSessionError,
+    LLMSessionPausedError,
 )
 from .middleware import LLMChatNext, LLMChatStreamNext, LLMEmbedNext, MiddlewareStack
+from .observability import LLMLifecycleEvent, LLMObserver
 from .structured import make_repair_prompt, parse_and_validate_json
 from .types import (
     EmbeddingRequest,
@@ -30,27 +39,291 @@ from .types import (
     LLMCapabilities,
     LLMRequest,
     LLMResponse,
+    LLMSessionHandle,
+    LLMSessionSnapshot,
     LLMStreamEvent,
+    LLMStreamHandle,
     Message,
     StreamCompletedEvent,
     ThinkingConfig,
+    Usage,
 )
 from .utils import backoff_delay, run_sync
 
 ModelT = TypeVar("ModelT", bound=BaseModel)
 ReturnT = TypeVar("ReturnT")
 
+_STREAM_END = object()
+
+
+class _QueuedStreamHandle(LLMStreamHandle):
+    """Default stream handle with local cancel semantics and optional interrupt."""
+
+    def __init__(
+        self,
+        *,
+        source: AsyncIterator[LLMStreamEvent],
+        request_id: str,
+        provider_id: str,
+        model: str | None,
+        emit_event: Callable[..., Awaitable[None]],
+        interrupt_callback: Callable[[], Awaitable[None]] | None,
+    ) -> None:
+        self._source = source
+        self._request_id = request_id
+        self._provider_id = provider_id
+        self._model = model
+        self._emit_event = emit_event
+        self._interrupt_callback = interrupt_callback
+
+        self._queue: asyncio.Queue[object] = asyncio.Queue()
+        self._done = asyncio.Event()
+        self._task: asyncio.Task[None] | None = None
+        self._result: LLMResponse | None = None
+        self._error: Exception | None = None
+        self._cancelled = False
+        self._interrupted = False
+        self._consumed = False
+
+    def _ensure_started(self) -> None:
+        if self._task is None:
+            self._task = asyncio.create_task(self._pump())
+
+    async def _pump(self) -> None:
+        terminal_count = 0
+
+        try:
+            async for event in self._source:
+                await self._emit_event(
+                    event_type="stream_event",
+                    request_id=self._request_id,
+                    model=self._model,
+                )
+                if isinstance(event, StreamCompletedEvent):
+                    terminal_count += 1
+                    if terminal_count > 1:
+                        raise LLMInvalidResponseError(
+                            "Stream emitted more than one completion event"
+                        )
+                    self._result = event.response
+
+                await self._queue.put(event)
+
+            if terminal_count != 1 and self._error is None:
+                raise LLMInvalidResponseError(
+                    "Stream ended without exactly one completion event"
+                )
+        except asyncio.CancelledError:
+            if self._interrupted:
+                self._error = LLMInterruptedError(
+                    f"Stream interrupted for request {self._request_id}"
+                )
+            elif self._cancelled:
+                self._error = LLMCancelledError(
+                    f"Stream cancelled for request {self._request_id}"
+                )
+            else:
+                self._error = LLMCancelledError(
+                    f"Stream cancelled for request {self._request_id}"
+                )
+        except Exception as e:
+            self._error = e if isinstance(e, LLMError) else LLMError(str(e))
+        finally:
+            if self._error is not None:
+                await self._queue.put(self._error)
+            await self._queue.put(_STREAM_END)
+            self._done.set()
+
+    async def _iter_events(self) -> AsyncIterator[LLMStreamEvent]:
+        self._ensure_started()
+        while True:
+            item = await self._queue.get()
+            if item is _STREAM_END:
+                break
+            if isinstance(item, Exception):
+                raise item
+            yield cast(LLMStreamEvent, item)
+
+    @property
+    def events(self) -> AsyncIterator[LLMStreamEvent]:
+        if self._consumed:
+            raise LLMSessionError(
+                "LLMStreamHandle.events supports a single consumer per stream handle"
+            )
+        self._consumed = True
+        return self._iter_events()
+
+    async def cancel(self) -> None:
+        if self._done.is_set():
+            return
+        self._ensure_started()
+        self._cancelled = True
+        await self._emit_event(
+            event_type="cancel",
+            request_id=self._request_id,
+            model=self._model,
+        )
+        if self._task is not None and not self._task.done():
+            self._task.cancel()
+            await asyncio.gather(self._task, return_exceptions=True)
+
+    async def interrupt(self) -> None:
+        if self._interrupt_callback is None:
+            raise LLMCapabilityError(
+                f"Provider '{self._provider_id}' does not support capability 'interrupt'"
+            )
+        if self._done.is_set():
+            return
+
+        self._ensure_started()
+        self._interrupted = True
+        await self._emit_event(
+            event_type="interrupt",
+            request_id=self._request_id,
+            model=self._model,
+        )
+
+        try:
+            await self._interrupt_callback()
+        finally:
+            if self._task is not None and not self._task.done():
+                self._task.cancel()
+                await asyncio.gather(self._task, return_exceptions=True)
+
+    async def await_result(self) -> LLMResponse | None:
+        self._ensure_started()
+        await self._done.wait()
+        if isinstance(self._error, (LLMCancelledError, LLMInterruptedError)):
+            return None
+        if self._error is not None:
+            raise self._error
+        return self._result
+
+
+class _TokenSessionHandle(LLMSessionHandle):
+    """Token-only session continuity handle used by adapters with session support."""
+
+    def __init__(
+        self,
+        *,
+        llm: LLM,
+        session_token: str | None = None,
+        checkpoint_token: str | None = None,
+    ) -> None:
+        self._llm = llm
+        self._session_token = session_token
+        self._checkpoint_token = checkpoint_token
+        self._paused = False
+        self._closed = False
+        self._active_stream: LLMStreamHandle | None = None
+        self._active_stream_task: asyncio.Task[None] | None = None
+
+    def _ensure_active(self) -> None:
+        if self._closed:
+            raise LLMSessionError("Session is closed")
+        if self._paused:
+            raise LLMSessionPausedError("Session is paused")
+
+    async def _capture_stream_result(self, handle: LLMStreamHandle) -> None:
+        try:
+            result = await handle.await_result()
+            if result is not None:
+                if result.session_token:
+                    self._session_token = result.session_token
+                if result.checkpoint_token:
+                    self._checkpoint_token = result.checkpoint_token
+        finally:
+            if self._active_stream is handle:
+                self._active_stream = None
+                self._active_stream_task = None
+
+    async def chat(
+        self,
+        req: LLMRequest,
+        *,
+        response_model: type[BaseModel] | None = None,
+    ) -> LLMResponse:
+        self._ensure_active()
+        scoped = replace(
+            req,
+            session_token=req.session_token or self._session_token,
+            checkpoint_token=req.checkpoint_token or self._checkpoint_token,
+        )
+        response = await self._llm.chat(scoped, response_model=response_model)
+        if response.session_token:
+            self._session_token = response.session_token
+        if response.checkpoint_token:
+            self._checkpoint_token = response.checkpoint_token
+        return response
+
+    async def stream(
+        self,
+        req: LLMRequest,
+        *,
+        response_model: type[BaseModel] | None = None,
+    ) -> LLMStreamHandle:
+        self._ensure_active()
+        scoped = replace(
+            req,
+            session_token=req.session_token or self._session_token,
+            checkpoint_token=req.checkpoint_token or self._checkpoint_token,
+        )
+        handle = await self._llm.chat_stream_handle(scoped, response_model=response_model)
+        self._active_stream = handle
+        self._active_stream_task = asyncio.create_task(self._capture_stream_result(handle))
+        return handle
+
+    async def pause(self) -> None:
+        if self._closed:
+            raise LLMSessionError("Session is closed")
+        self._paused = True
+
+    async def resume(self, session_token: str | None = None) -> None:
+        if self._closed:
+            raise LLMSessionError("Session is closed")
+        if session_token is not None:
+            if not isinstance(session_token, str) or not session_token.strip():
+                raise LLMSessionError("session_token must be a non-empty string")
+            self._session_token = session_token.strip()
+        self._paused = False
+
+    async def interrupt(self) -> None:
+        if self._closed:
+            raise LLMSessionError("Session is closed")
+        if self._active_stream is None:
+            raise LLMSessionError("No active stream to interrupt")
+        await self._active_stream.interrupt()
+
+    async def close(self) -> None:
+        if self._closed:
+            return
+        self._closed = True
+        self._paused = False
+        if self._active_stream is not None:
+            await self._active_stream.cancel()
+        if self._active_stream_task is not None:
+            await asyncio.gather(self._active_stream_task, return_exceptions=True)
+        self._active_stream = None
+        self._active_stream_task = None
+
+    async def snapshot(self) -> LLMSessionSnapshot:
+        return LLMSessionSnapshot(
+            session_token=self._session_token,
+            checkpoint_token=self._checkpoint_token,
+            paused=self._paused,
+            closed=self._closed,
+        )
+
 
 class LLM(ABC):
     """
     Base class for provider-agnostic LLM interactions.
 
-    Public methods define a single stable contract for agents:
+    Public methods define one stable client contract for agents:
       - chat/chat_sync
-      - chat_stream
+      - chat_stream and chat_stream_handle
       - embed/embed_sync
-
-    Adapters only implement provider transport in the abstract *_core hooks.
+      - start_session (optional capability)
     """
 
     def __init__(
@@ -61,16 +334,17 @@ class LLM(ABC):
         thinking_effort_aliases: Mapping[str, str] | None = None,
         supported_thinking_efforts: set[str] | None = None,
         default_thinking_effort: str | None = None,
+        observers: list[LLMObserver] | None = None,
     ) -> None:
         """
         Create a base LLM client.
 
-        Thinking controls are configurable at instance level so callers can
-        customize provider-specific effort labels without subclassing.
-        Subclasses can still override provider defaults via dedicated hooks.
+        Thinking controls are configurable per instance. Observers receive
+        lifecycle events and are isolated from call execution.
         """
         self.config = config or LLMConfig.from_env()
         self.middlewares = middlewares or MiddlewareStack()
+        self._observers = list(observers or [])
         self._thinking_effort_aliases_override = self._validate_thinking_effort_aliases(
             thinking_effort_aliases
         )
@@ -102,15 +376,14 @@ class LLM(ABC):
         thinking_effort_aliases: Mapping[str, str] | None = None,
         supported_thinking_efforts: set[str] | None = None,
         default_thinking_effort: str | None = None,
+        observers: list[LLMObserver] | None = None,
     ) -> "LLM":
         """
         Build an LLM client from environment configuration.
 
         If called on the abstract base class, this delegates to the adapter
-        factory (`AFK_LLM_ADAPTER`). Subclasses can still call this classmethod
-        to construct themselves using `LLMConfig.from_env()`.
+        factory (`AFK_LLM_ADAPTER`).
         """
-        # When called on the abstract base, resolve via factory.
         if cls is LLM:
             from .factory import create_llm_from_env
 
@@ -119,6 +392,7 @@ class LLM(ABC):
                 thinking_effort_aliases=thinking_effort_aliases,
                 supported_thinking_efforts=supported_thinking_efforts,
                 default_thinking_effort=default_thinking_effort,
+                observers=observers,
             )
 
         return cls(
@@ -127,14 +401,15 @@ class LLM(ABC):
             thinking_effort_aliases=thinking_effort_aliases,
             supported_thinking_efforts=supported_thinking_efforts,
             default_thinking_effort=default_thinking_effort,
+            observers=observers,
         )
 
     def _provider_thinking_effort_aliases(self) -> dict[str, str]:
         """
         Provider-default aliases for request thinking effort labels.
 
-        Subclasses can override to map generic labels (for example `balanced`)
-        into provider-native labels.
+        Subclasses can map generic labels (for example `balanced`) into
+        provider-native labels.
         """
         return {}
 
@@ -154,20 +429,13 @@ class LLM(ABC):
         return None
 
     def thinking_effort_aliases(self) -> dict[str, str]:
-        """
-        Effective alias map after combining provider defaults and instance
-        overrides.
-        """
+        """Effective alias map after combining provider defaults and instance overrides."""
         aliases = dict(self._provider_thinking_effort_aliases())
         aliases.update(self._thinking_effort_aliases_override)
         return aliases
 
     def supported_thinking_efforts(self) -> set[str] | None:
-        """
-        Effective allowed effort labels.
-
-        Instance-level values take precedence over provider defaults.
-        """
+        """Effective allowed effort labels."""
         if self._supported_thinking_efforts_override is not None:
             return set(self._supported_thinking_efforts_override)
 
@@ -175,9 +443,7 @@ class LLM(ABC):
         return set(provider_supported) if provider_supported is not None else None
 
     def default_thinking_effort(self) -> str | None:
-        """
-        Effective default effort when `thinking=True` and no effort is provided.
-        """
+        """Effective default effort when `thinking=True` and no effort is provided."""
         if self._default_thinking_effort_override is not None:
             return self._default_thinking_effort_override
         return self._provider_default_thinking_effort()
@@ -212,10 +478,7 @@ class LLM(ABC):
         return normalized
 
     def resolve_thinking(self, req: LLMRequest) -> ThinkingConfig:
-        """
-        Resolve request thinking controls into a normalized provider-agnostic
-        config consumed by adapters.
-        """
+        """Resolve request thinking controls into a normalized provider-agnostic config."""
         effort = self.normalize_thinking_effort(req.thinking_effort)
         if effort is None and req.thinking is True:
             effort = self.normalize_thinking_effort(self.default_thinking_effort())
@@ -236,8 +499,9 @@ class LLM(ABC):
         Execute a non-streaming chat completion.
 
         Applies request validation, capability checks, middleware, retry/timeout
-        behavior, and optional structured-output validation.
+        behavior, structured-output safety, and request-id correlation.
         """
+        req = self._ensure_request_id(req)
         self._ensure_capability("chat", self.capabilities.chat)
         self._validate_chat_request(req)
 
@@ -271,7 +535,8 @@ class LLM(ABC):
 
             call_next = _wrapped
 
-        return await call_next(req)
+        response = await call_next(req)
+        return self._apply_response_context(req, response)
 
     def chat_sync(
         self,
@@ -291,9 +556,10 @@ class LLM(ABC):
         """
         Execute a streaming chat completion.
 
-        Emits normalized stream events and always ends with a
-        `StreamCompletedEvent` carrying the final `LLMResponse`.
+        Emits normalized stream events and ends with exactly one
+        `StreamCompletedEvent` or raises explicit cancellation/interruption.
         """
+        req = self._ensure_request_id(req)
         self._ensure_capability("chat", self.capabilities.chat)
         self._ensure_capability("streaming", self.capabilities.streaming)
         self._validate_chat_request(req)
@@ -330,6 +596,38 @@ class LLM(ABC):
 
         return call_next(req)
 
+    async def chat_stream_handle(
+        self,
+        req: LLMRequest,
+        *,
+        response_model: type[ModelT] | None = None,
+    ) -> LLMStreamHandle:
+        """
+        Execute a streaming chat call and return a control handle.
+
+        This is non-breaking relative to `chat_stream`: call sites that only
+        need the event iterator can continue using `chat_stream`.
+        """
+        req = self._ensure_request_id(req)
+        stream = await self.chat_stream(req, response_model=response_model)
+
+        interrupt_callback: Callable[[], Awaitable[None]] | None = None
+        if self.capabilities.interrupt:
+
+            async def _interrupt() -> None:
+                await self._interrupt_request(req)
+
+            interrupt_callback = _interrupt
+
+        return _QueuedStreamHandle(
+            source=stream,
+            request_id=req.request_id or self._new_request_id(),
+            provider_id=self.provider_id,
+            model=req.model,
+            emit_event=self._emit_lifecycle_event,
+            interrupt_callback=interrupt_callback,
+        )
+
     async def embed(self, req: EmbeddingRequest) -> EmbeddingResponse:
         """
         Generate embeddings for a batch of input strings.
@@ -338,10 +636,12 @@ class LLM(ABC):
         retry/timeout behavior.
         """
         self._ensure_capability("embeddings", self.capabilities.embeddings)
+        req = self._resolve_embedding_model(req)
         self._validate_embedding_request(req)
+        request_id = self._new_request_id()
 
         async def _base_handler(current_req: EmbeddingRequest) -> EmbeddingResponse:
-            return await self._embed_core_with_safety(current_req)
+            return await self._embed_core_with_safety(current_req, request_id=request_id)
 
         call_next: LLMEmbedNext = _base_handler
         for middleware in reversed(self.middlewares.embed):
@@ -363,6 +663,36 @@ class LLM(ABC):
         """Synchronous wrapper around `embed`."""
         return run_sync(self.embed(req))
 
+    def start_session(
+        self,
+        *,
+        session_token: str | None = None,
+        checkpoint_token: str | None = None,
+    ) -> LLMSessionHandle:
+        """
+        Start a provider session handle for continuity/control primitives.
+
+        Adapters that advertise `capabilities.session_control=True` can use the
+        default token session handle or override this method.
+        """
+        self._ensure_capability("session_control", self.capabilities.session_control)
+        return _TokenSessionHandle(
+            llm=self,
+            session_token=session_token,
+            checkpoint_token=checkpoint_token,
+        )
+
+    async def _interrupt_request(self, req: LLMRequest) -> None:
+        """
+        Provider-specific interrupt hook used by `chat_stream_handle`.
+
+        Adapters that support interrupt should override this.
+        """
+        _ = req
+        raise LLMCapabilityError(
+            f"Provider '{self.provider_id}' does not support capability 'interrupt'"
+        )
+
     async def _chat_core_with_safety(
         self,
         req: LLMRequest,
@@ -371,6 +701,7 @@ class LLM(ABC):
     ) -> LLMResponse:
         """Run provider chat call under timeout/retry and structured checks."""
         timeout = req.timeout_s if req.timeout_s is not None else self.config.timeout_s
+        retries = self.config.max_retries if self._can_retry_request(req, False) else 0
 
         async def _provider_call() -> LLMResponse:
             if timeout is None:
@@ -380,7 +711,13 @@ class LLM(ABC):
                 timeout=timeout,
             )
 
-        response = await self._call_with_retries(_provider_call)
+        response = await self._call_with_retries(
+            _provider_call,
+            request_id=req.request_id or self._new_request_id(),
+            model=req.model,
+            max_retries=retries,
+        )
+        response = self._apply_response_context(req, response)
         if response_model is None:
             return response
 
@@ -397,9 +734,13 @@ class LLM(ABC):
         response_model: type[ModelT] | None,
     ) -> AsyncIterator[LLMStreamEvent]:
         """Run provider streaming call with retry setup and completion validation."""
+
         async def _run() -> AsyncIterator[LLMStreamEvent]:
             timeout = (
                 req.timeout_s if req.timeout_s is not None else self.config.timeout_s
+            )
+            retries = (
+                self.config.max_retries if self._can_retry_request(req, False) else 0
             )
 
             async def _provider_call() -> AsyncIterator[LLMStreamEvent]:
@@ -416,25 +757,47 @@ class LLM(ABC):
                     timeout=timeout,
                 )
 
-            stream = await self._call_with_retries(_provider_call)
+            stream = await self._call_with_retries(
+                _provider_call,
+                request_id=req.request_id or self._new_request_id(),
+                model=req.model,
+                max_retries=retries,
+            )
 
             async def _guarded() -> AsyncIterator[LLMStreamEvent]:
+                completed_count = 0
                 try:
                     async for event in stream:
                         if isinstance(event, StreamCompletedEvent):
-                            if response_model is None:
-                                yield event
-                                continue
-                            validated = await self._ensure_structured_response(
-                                req,
-                                event.response,
-                                response_model=response_model,
-                            )
-                            yield StreamCompletedEvent(response=validated)
-                            continue
+                            completed_count += 1
+                            if completed_count > 1:
+                                raise LLMInvalidResponseError(
+                                    "Stream emitted more than one completion event"
+                                )
 
+                            response = self._apply_response_context(req, event.response)
+                            if response_model is not None:
+                                response = await self._ensure_structured_response(
+                                    req,
+                                    response,
+                                    response_model=response_model,
+                                )
+                            event = StreamCompletedEvent(response=response)
+
+                        await self._emit_lifecycle_event(
+                            event_type="stream_event",
+                            request_id=req.request_id or self._new_request_id(),
+                            model=req.model,
+                        )
                         yield event
+
+                    if completed_count != 1:
+                        raise LLMInvalidResponseError(
+                            "Stream ended without exactly one completion event"
+                        )
                 except Exception as e:
+                    if isinstance(e, (LLMCancelledError, LLMInterruptedError)):
+                        raise
                     classified = e if isinstance(e, LLMError) else self._classify_error(e)
                     raise classified from e
 
@@ -447,7 +810,12 @@ class LLM(ABC):
 
         return _iter()
 
-    async def _embed_core_with_safety(self, req: EmbeddingRequest) -> EmbeddingResponse:
+    async def _embed_core_with_safety(
+        self,
+        req: EmbeddingRequest,
+        *,
+        request_id: str,
+    ) -> EmbeddingResponse:
         """Run provider embedding call under timeout/retry policies."""
         timeout = req.timeout_s if req.timeout_s is not None else self.config.timeout_s
 
@@ -459,7 +827,12 @@ class LLM(ABC):
                 timeout=timeout,
             )
 
-        return await self._call_with_retries(_provider_call)
+        return await self._call_with_retries(
+            _provider_call,
+            request_id=request_id,
+            model=req.model,
+            max_retries=self.config.max_retries,
+        )
 
     async def _ensure_structured_response(
         self,
@@ -488,9 +861,18 @@ class LLM(ABC):
 
             repair_prompt = make_repair_prompt(response.text, response_model)
             repair_req = self._make_repair_request(req, repair_prompt)
-            response = await self._call_with_retries(
-                lambda: self._chat_core(repair_req, response_model=response_model)
+            retries = (
+                self.config.max_retries
+                if self._can_retry_request(repair_req, safe_without_idempotency=False)
+                else 0
             )
+            response = await self._call_with_retries(
+                lambda: self._chat_core(repair_req, response_model=response_model),
+                request_id=repair_req.request_id or self._new_request_id(),
+                model=repair_req.model,
+                max_retries=retries,
+            )
+            response = self._apply_response_context(repair_req, response)
 
         raise LLMInvalidResponseError(
             f"Structured output remained invalid after {self.config.json_max_retries + 1} attempts."
@@ -548,6 +930,17 @@ class LLM(ABC):
 
     def _validate_chat_request(self, req: LLMRequest) -> None:
         """Validate chat request structure and enforce global input limits."""
+        self._validate_optional_nonempty(req.request_id, "LLMRequest.request_id")
+        self._validate_optional_nonempty(
+            req.idempotency_key,
+            "LLMRequest.idempotency_key",
+        )
+        self._validate_optional_nonempty(req.session_token, "LLMRequest.session_token")
+        self._validate_optional_nonempty(
+            req.checkpoint_token,
+            "LLMRequest.checkpoint_token",
+        )
+
         if not req.model or not req.model.strip():
             raise LLMError("LLMRequest.model must be a non-empty string")
 
@@ -576,7 +969,18 @@ class LLM(ABC):
                 "LLMRequest.thinking=False cannot be combined with thinking_effort/max_thinking_tokens"
             )
 
-        # Validate provider/instance-specific effort mapping and defaults.
+        if req.stop is not None:
+            if not isinstance(req.stop, list) or not req.stop:
+                raise LLMError("LLMRequest.stop must be a non-empty list when provided")
+            for idx, item in enumerate(req.stop):
+                if not isinstance(item, str) or not item.strip():
+                    raise LLMError(f"LLMRequest.stop[{idx}] must be a non-empty string")
+
+        if not isinstance(req.metadata, dict):
+            raise LLMError("LLMRequest.metadata must be a JSON object")
+        if not isinstance(req.extra, dict):
+            raise LLMError("LLMRequest.extra must be a JSON object")
+
         self.resolve_thinking(req)
 
         total_chars = 0
@@ -612,6 +1016,11 @@ class LLM(ABC):
 
         if req.timeout_s is not None and req.timeout_s <= 0:
             raise LLMError("EmbeddingRequest.timeout_s must be greater than 0")
+
+        if not isinstance(req.metadata, dict):
+            raise LLMError("EmbeddingRequest.metadata must be a JSON object")
+        if not isinstance(req.extra, dict):
+            raise LLMError("EmbeddingRequest.extra must be a JSON object")
 
         total_chars = 0
         for idx, value in enumerate(req.inputs):
@@ -771,6 +1180,13 @@ class LLM(ABC):
             raise LLMError(f"{field_name} must be a non-empty string")
         return normalized
 
+    def _validate_optional_nonempty(self, value: str | None, field_name: str) -> None:
+        """Validate optional token/id fields as non-empty strings when present."""
+        if value is None:
+            return
+        if not isinstance(value, str) or not value.strip():
+            raise LLMError(f"{field_name} must be a non-empty string when provided")
+
     def _message_char_count(self, message: Message) -> int:
         """Best-effort character count used for input size limiting."""
         content = message.content
@@ -792,35 +1208,125 @@ class LLM(ABC):
                 total += len(json.dumps(part, ensure_ascii=True, default=str))
         return total
 
+    def _resolve_embedding_model(self, req: EmbeddingRequest) -> EmbeddingRequest:
+        """
+        Resolve embedding model from request first, then config fallback.
+
+        Raises `LLMConfigurationError` when neither source is configured.
+        """
+        if isinstance(req.model, str) and req.model.strip():
+            return req
+
+        cfg_model = self.config.embedding_model
+        if not isinstance(cfg_model, str) or not cfg_model.strip():
+            raise LLMConfigurationError(
+                "Embedding model is not configured. Provide `EmbeddingRequest.model` "
+                "or set `LLMConfig.embedding_model`/`AFK_EMBED_MODEL`."
+            )
+
+        return replace(req, model=cfg_model.strip())
+
+    def _ensure_request_id(self, req: LLMRequest) -> LLMRequest:
+        """Ensure every request has a correlation id."""
+        request_id = req.request_id
+        if isinstance(request_id, str) and request_id.strip():
+            return req
+        return replace(req, request_id=self._new_request_id())
+
+    def _new_request_id(self) -> str:
+        """Generate a new opaque correlation id."""
+        return uuid.uuid4().hex
+
+    def _apply_response_context(self, req: LLMRequest, response: LLMResponse) -> LLMResponse:
+        """
+        Ensure response carries normalized request/session/checkpoint context.
+        """
+        return replace(
+            response,
+            request_id=response.request_id or req.request_id,
+            session_token=response.session_token or req.session_token,
+            checkpoint_token=response.checkpoint_token or req.checkpoint_token,
+        )
+
+    def _can_retry_request(self, req: LLMRequest, safe_without_idempotency: bool) -> bool:
+        """
+        Decide retry eligibility for one request path.
+
+        Non-safe operations require both a caller-supplied idempotency key and
+        adapter support for idempotency propagation.
+        """
+        if safe_without_idempotency:
+            return True
+        return bool(req.idempotency_key) and self.capabilities.idempotency
+
     async def _call_with_retries(
         self,
         fn: Callable[[], Awaitable[ReturnT]],
+        *,
+        request_id: str,
+        model: str | None,
+        max_retries: int | None = None,
     ) -> ReturnT:
         """Execute a callable with retry-on-transient-error semantics."""
+        retries = self.config.max_retries if max_retries is None else max_retries
         last: Exception | None = None
 
-        for attempt in range(self.config.max_retries + 1):
+        await self._emit_lifecycle_event(
+            event_type="request_start",
+            request_id=request_id,
+            model=model,
+            attempt=1,
+        )
+
+        for attempt in range(retries + 1):
+            started_at = time.monotonic()
             try:
-                return await fn()
+                result = await fn()
+                latency_ms = (time.monotonic() - started_at) * 1000.0
+                await self._emit_lifecycle_event(
+                    event_type="request_success",
+                    request_id=request_id,
+                    model=model,
+                    attempt=attempt + 1,
+                    latency_ms=latency_ms,
+                    usage=self._extract_usage_snapshot(result),
+                )
+                return result
             except Exception as e:
                 classified = e if isinstance(e, LLMError) else self._classify_error(e)
                 last = classified
+                latency_ms = (time.monotonic() - started_at) * 1000.0
 
                 retryable = isinstance(classified, LLMRetryableError)
-                if (not retryable) or attempt >= self.config.max_retries:
-                    raise classified from e
-
-                await asyncio.sleep(
-                    backoff_delay(
-                        attempt,
-                        self.config.backoff_base_s,
-                        self.config.backoff_jitter_s,
+                if retryable and attempt < retries:
+                    await self._emit_lifecycle_event(
+                        event_type="retry",
+                        request_id=request_id,
+                        model=model,
+                        attempt=attempt + 1,
+                        latency_ms=latency_ms,
+                        error=classified,
                     )
-                )
+                    await asyncio.sleep(
+                        backoff_delay(
+                            attempt,
+                            self.config.backoff_base_s,
+                            self.config.backoff_jitter_s,
+                        )
+                    )
+                    continue
 
-        raise LLMError(
-            f"LLM call failed after {self.config.max_retries} retries"
-        ) from last
+                await self._emit_lifecycle_event(
+                    event_type="request_error",
+                    request_id=request_id,
+                    model=model,
+                    attempt=attempt + 1,
+                    latency_ms=latency_ms,
+                    error=classified,
+                )
+                raise classified from e
+
+        raise LLMError(f"LLM call failed after {retries} retries") from last
 
     def _classify_error(self, e: Exception) -> LLMError:
         """Map arbitrary exceptions into retryable vs non-retryable LLM errors."""
@@ -919,6 +1425,47 @@ class LLM(ABC):
             return LLMError(msg)
 
         return LLMError(msg)
+
+    async def _emit_lifecycle_event(
+        self,
+        *,
+        event_type: str,
+        request_id: str,
+        model: str | None,
+        attempt: int | None = None,
+        latency_ms: float | None = None,
+        usage: Usage | None = None,
+        error: Exception | None = None,
+    ) -> None:
+        """Emit one lifecycle event to observers, swallowing observer failures."""
+        if not self._observers:
+            return
+
+        event = LLMLifecycleEvent(
+            event_type=cast(Any, event_type),
+            request_id=request_id,
+            provider_id=self.provider_id,
+            model=model,
+            attempt=attempt,
+            latency_ms=latency_ms,
+            usage=usage,
+            error_class=type(error).__name__ if error is not None else None,
+            error_message=str(error) if error is not None else None,
+        )
+
+        for observer in self._observers:
+            try:
+                result = observer(event)
+                if inspect.isawaitable(result):
+                    await cast(Awaitable[Any], result)
+            except Exception:
+                continue
+
+    def _extract_usage_snapshot(self, result: Any) -> Usage | None:
+        """Extract usage counters from normalized return values when available."""
+        if isinstance(result, LLMResponse):
+            return result.usage
+        return None
 
     @abstractmethod
     async def _chat_core(

@@ -1,10 +1,14 @@
 from .config import LLMConfig
 from .errors import (
     LLMCapabilityError,
+    LLMCancelledError,
     LLMConfigurationError,
     LLMError,
+    LLMInterruptedError,
     LLMInvalidResponseError,
     LLMRetryableError,
+    LLMSessionError,
+    LLMSessionPausedError,
     LLMTimeoutError,
 )
 from .clients import AnthropicAgentClient, LiteLLMClient, OpenAIClient, ResponsesClientBase
@@ -16,13 +20,17 @@ from .factory import (
 )
 from .llm import LLM
 from .middleware import MiddlewareStack
+from .observability import LLMLifecycleEvent, LLMObserver
 from .types import (
     EmbeddingRequest,
     EmbeddingResponse,
     LLMCapabilities,
     LLMRequest,
     LLMResponse,
+    LLMSessionHandle,
+    LLMSessionSnapshot,
     LLMStreamEvent,
+    LLMStreamHandle,
     Message,
     StreamCompletedEvent,
     StreamErrorEvent,
@@ -48,11 +56,18 @@ __all__ = [
     "LLMInvalidResponseError",
     "LLMConfigurationError",
     "LLMCapabilityError",
+    "LLMCancelledError",
+    "LLMInterruptedError",
+    "LLMSessionError",
+    "LLMSessionPausedError",
     "LLMRequest",
     "LLMResponse",
     "EmbeddingRequest",
     "EmbeddingResponse",
     "LLMCapabilities",
+    "LLMStreamHandle",
+    "LLMSessionHandle",
+    "LLMSessionSnapshot",
     "LLMStreamEvent",
     "Message",
     "ToolCall",
@@ -67,4 +82,6 @@ __all__ = [
     "create_llm_from_env",
     "available_llm_adapters",
     "register_llm_adapter",
+    "LLMObserver",
+    "LLMLifecycleEvent",
 ]

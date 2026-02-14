@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Callable, Mapping
 from .config import LLMConfig
 from .errors import LLMConfigurationError
 from .middleware import MiddlewareStack
+from .observability import LLMObserver
 
 if TYPE_CHECKING:
     from .llm import LLM
@@ -50,6 +51,7 @@ def create_llm(
     thinking_effort_aliases: Mapping[str, str] | None = None,
     supported_thinking_efforts: set[str] | None = None,
     default_thinking_effort: str | None = None,
+    observers: list[LLMObserver] | None = None,
 ) -> "LLM":
     """Create an LLM client instance for a specific adapter key."""
     key = adapter.strip().lower()
@@ -66,6 +68,7 @@ def create_llm(
             thinking_effort_aliases=thinking_effort_aliases,
             supported_thinking_efforts=supported_thinking_efforts,
             default_thinking_effort=default_thinking_effort,
+            observers=observers,
         )
     elif any(
         value is not None
@@ -73,10 +76,11 @@ def create_llm(
             thinking_effort_aliases,
             supported_thinking_efforts,
             default_thinking_effort,
+            observers,
         )
     ):
         raise LLMConfigurationError(
-            "thinking-effort overrides are only supported by built-in adapters "
+            "thinking-effort/observer overrides are only supported by built-in adapters "
             "via `create_llm`. For custom adapters, instantiate the class directly."
         )
 
@@ -90,6 +94,7 @@ def create_llm_from_env(
     thinking_effort_aliases: Mapping[str, str] | None = None,
     supported_thinking_efforts: set[str] | None = None,
     default_thinking_effort: str | None = None,
+    observers: list[LLMObserver] | None = None,
 ) -> "LLM":
     """Create an LLM client using `AFK_LLM_ADAPTER` (defaults to `litellm`)."""
     adapter = os.getenv("AFK_LLM_ADAPTER", "litellm")
@@ -100,6 +105,7 @@ def create_llm_from_env(
         thinking_effort_aliases=thinking_effort_aliases,
         supported_thinking_efforts=supported_thinking_efforts,
         default_thinking_effort=default_thinking_effort,
+        observers=observers,
     )
 
 
@@ -109,6 +115,7 @@ def _builtin_factory(
     thinking_effort_aliases: Mapping[str, str] | None,
     supported_thinking_efforts: set[str] | None,
     default_thinking_effort: str | None,
+    observers: list[LLMObserver] | None,
 ) -> AdapterFactory:
     """Resolve built-in adapter factories lazily to avoid hard imports."""
     if adapter == "litellm":
@@ -120,6 +127,7 @@ def _builtin_factory(
             thinking_effort_aliases=thinking_effort_aliases,
             supported_thinking_efforts=supported_thinking_efforts,
             default_thinking_effort=default_thinking_effort,
+            observers=observers,
         )
 
     if adapter == "anthropic_agent":
@@ -131,6 +139,7 @@ def _builtin_factory(
             thinking_effort_aliases=thinking_effort_aliases,
             supported_thinking_efforts=supported_thinking_efforts,
             default_thinking_effort=default_thinking_effort,
+            observers=observers,
         )
 
     if adapter == "openai":
@@ -142,6 +151,7 @@ def _builtin_factory(
             thinking_effort_aliases=thinking_effort_aliases,
             supported_thinking_efforts=supported_thinking_efforts,
             default_thinking_effort=default_thinking_effort,
+            observers=observers,
         )
 
     raise LLMConfigurationError(

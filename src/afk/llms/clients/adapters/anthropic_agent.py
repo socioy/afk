@@ -41,7 +41,14 @@ class AnthropicAgentClient(LLM):
         tool_calling=True,
         structured_output=True,
         embeddings=False,
+        interrupt=True,
+        session_control=True,
+        checkpoint_resume=True,
     )
+
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self._active_stream_clients: dict[str, Any] = {}
 
     @property
     def provider_id(self) -> str:
@@ -58,7 +65,12 @@ class AnthropicAgentClient(LLM):
         response_model: type[BaseModel] | None = None,
     ) -> LLMResponse:
         """Execute one non-streaming SDK query and normalize final response."""
-        query_fn, options_type = self._load_sdk_api()
+        if req.stop is not None:
+            raise LLMCapabilityError(
+                "AnthropicAgentClient does not support request-level `stop` in this transport."
+            )
+
+        query_fn, options_type, _ = self._load_sdk_api()
 
         prompt, system_prompt = self._build_prompt(req.messages)
         options = self._build_sdk_options(
@@ -75,6 +87,8 @@ class AnthropicAgentClient(LLM):
         structured: dict[str, Any] | None = None
         usage = Usage()
         model: str | None = None
+        session_token: str | None = None
+        checkpoint_token: str | None = None
         raw_messages: list[dict[str, Any]] = []
 
         async for message in query_fn(prompt=prompt, options=options):
@@ -93,9 +107,16 @@ class AnthropicAgentClient(LLM):
                 result_structured = self._extract_result_structured(message)
                 if isinstance(result_structured, dict):
                     structured = result_structured
+                session_token = self._extract_result_session_token(message) or session_token
+                checkpoint_token = (
+                    self._extract_result_checkpoint_token(message) or checkpoint_token
+                )
 
         return LLMResponse(
             text="".join(text_chunks),
+            request_id=req.request_id,
+            session_token=session_token or req.session_token,
+            checkpoint_token=checkpoint_token or req.checkpoint_token,
             structured_response=structured,
             tool_calls=self._dedupe_tool_calls(tool_calls),
             finish_reason=finish_reason,
@@ -111,7 +132,12 @@ class AnthropicAgentClient(LLM):
         response_model: type[BaseModel] | None = None,
     ) -> AsyncIterator[LLMStreamEvent]:
         """Execute streaming SDK query and emit normalized stream events."""
-        query_fn, options_type = self._load_sdk_api()
+        if req.stop is not None:
+            raise LLMCapabilityError(
+                "AnthropicAgentClient does not support request-level `stop` in this transport."
+            )
+
+        query_fn, options_type, sdk_client_type = self._load_sdk_api()
 
         prompt, system_prompt = self._build_prompt(req.messages)
         options = self._build_sdk_options(
@@ -131,45 +157,100 @@ class AnthropicAgentClient(LLM):
             structured: dict[str, Any] | None = None
             usage = Usage()
             model: str | None = None
+            session_token: str | None = None
+            checkpoint_token: str | None = None
             raw_messages: list[dict[str, Any]] = []
             saw_text_delta = False
 
-            async for message in query_fn(prompt=prompt, options=options):
-                raw_messages.append(self._serialize_sdk_message(message))
+            request_id = req.request_id or ""
+            if sdk_client_type is not None and request_id:
+                client = sdk_client_type(options=options)
+                self._active_stream_clients[request_id] = client
+                try:
+                    await client.connect()
+                    await client.query(prompt)
+                    message_iter = client.receive_response()
+                    async for message in message_iter:
+                        raw_messages.append(self._serialize_sdk_message(message))
 
-                msg_type = type(message).__name__
+                        msg_type = type(message).__name__
+                        if msg_type == "AssistantMessage":
+                            model = get_attr_str(message, "model") or model
+                            blocks = self._iter_content_blocks(message)
+                            block_texts = self._extract_text_blocks(blocks)
+                            if block_texts:
+                                chunk = "".join(block_texts)
+                                text_chunks.extend(block_texts)
+                                yield StreamTextDeltaEvent(delta=chunk)
+                            tool_calls.extend(self._extract_tool_blocks(blocks))
+                            continue
 
-                if msg_type == "StreamEvent":
-                    event = get_attr(message, "event")
-                    if isinstance(event, dict):
-                        for stream_event in self._stream_events_from_raw(event):
-                            if isinstance(stream_event, StreamTextDeltaEvent):
-                                saw_text_delta = True
-                                text_chunks.append(stream_event.delta)
-                            yield stream_event
-                    continue
+                        if msg_type == "ResultMessage":
+                            finish_reason = get_attr_str(message, "subtype") or finish_reason
+                            usage = self._usage_from_obj(get_attr(message, "usage"))
+                            result_structured = self._extract_result_structured(message)
+                            if isinstance(result_structured, dict):
+                                structured = result_structured
+                            session_token = (
+                                self._extract_result_session_token(message) or session_token
+                            )
+                            checkpoint_token = (
+                                self._extract_result_checkpoint_token(message)
+                                or checkpoint_token
+                            )
+                finally:
+                    self._active_stream_clients.pop(request_id, None)
+                    try:
+                        await client.disconnect()
+                    except Exception:
+                        pass
+            else:
+                async for message in query_fn(prompt=prompt, options=options):
+                    raw_messages.append(self._serialize_sdk_message(message))
 
-                if msg_type == "AssistantMessage":
-                    model = get_attr_str(message, "model") or model
-                    blocks = self._iter_content_blocks(message)
-                    if not saw_text_delta:
-                        block_texts = self._extract_text_blocks(blocks)
-                        if block_texts:
-                            chunk = "".join(block_texts)
-                            text_chunks.extend(block_texts)
-                            yield StreamTextDeltaEvent(delta=chunk)
-                    tool_calls.extend(self._extract_tool_blocks(blocks))
-                    continue
+                    msg_type = type(message).__name__
 
-                if msg_type == "ResultMessage":
-                    finish_reason = get_attr_str(message, "subtype") or finish_reason
-                    usage = self._usage_from_obj(get_attr(message, "usage"))
-                    result_structured = self._extract_result_structured(message)
-                    if isinstance(result_structured, dict):
-                        structured = result_structured
+                    if msg_type == "StreamEvent":
+                        event = get_attr(message, "event")
+                        if isinstance(event, dict):
+                            for stream_event in self._stream_events_from_raw(event):
+                                if isinstance(stream_event, StreamTextDeltaEvent):
+                                    saw_text_delta = True
+                                    text_chunks.append(stream_event.delta)
+                                yield stream_event
+                        continue
+
+                    if msg_type == "AssistantMessage":
+                        model = get_attr_str(message, "model") or model
+                        blocks = self._iter_content_blocks(message)
+                        if not saw_text_delta:
+                            block_texts = self._extract_text_blocks(blocks)
+                            if block_texts:
+                                chunk = "".join(block_texts)
+                                text_chunks.extend(block_texts)
+                                yield StreamTextDeltaEvent(delta=chunk)
+                        tool_calls.extend(self._extract_tool_blocks(blocks))
+                        continue
+
+                    if msg_type == "ResultMessage":
+                        finish_reason = get_attr_str(message, "subtype") or finish_reason
+                        usage = self._usage_from_obj(get_attr(message, "usage"))
+                        result_structured = self._extract_result_structured(message)
+                        if isinstance(result_structured, dict):
+                            structured = result_structured
+                        session_token = (
+                            self._extract_result_session_token(message) or session_token
+                        )
+                        checkpoint_token = (
+                            self._extract_result_checkpoint_token(message)
+                            or checkpoint_token
+                        )
 
             response = LLMResponse(
                 text="".join(text_chunks),
+                request_id=req.request_id,
+                session_token=session_token or req.session_token,
+                checkpoint_token=checkpoint_token or req.checkpoint_token,
                 structured_response=structured,
                 tool_calls=self._dedupe_tool_calls(tool_calls),
                 finish_reason=finish_reason,
@@ -191,7 +272,20 @@ class AnthropicAgentClient(LLM):
             "Use a separate embeddings adapter (e.g., LiteLLM)."
         )
 
-    def _load_sdk_api(self) -> tuple[Any, Any]:
+    async def _interrupt_request(self, req: LLMRequest) -> None:
+        """Interrupt active SDK streaming request for the given request id."""
+        request_id = req.request_id
+        if not isinstance(request_id, str) or not request_id:
+            raise LLMCapabilityError("Interrupt requires a request_id for AnthropicAgentClient")
+
+        client = self._active_stream_clients.get(request_id)
+        if client is None:
+            raise LLMCapabilityError(
+                "No active ClaudeSDKClient stream found for this request_id"
+            )
+        await client.interrupt()
+
+    def _load_sdk_api(self) -> tuple[Any, Any, Any | None]:
         """Import and return required SDK symbols with a clear config error."""
         try:
             from claude_agent_sdk import ClaudeAgentOptions, query
@@ -200,7 +294,12 @@ class AnthropicAgentClient(LLM):
                 "claude-agent-sdk is not installed. Install it with: pip install claude-agent-sdk"
             ) from e
 
-        return query, ClaudeAgentOptions
+        try:  # pragma: no cover - optional symbol in tests
+            from claude_agent_sdk import ClaudeSDKClient
+        except Exception:
+            ClaudeSDKClient = None
+
+        return query, ClaudeAgentOptions, ClaudeSDKClient
 
     def _build_sdk_options(
         self,
@@ -227,6 +326,15 @@ class AnthropicAgentClient(LLM):
 
         if include_partial_messages:
             option_kwargs["include_partial_messages"] = True
+
+        if req.session_token:
+            option_kwargs.setdefault("resume", req.session_token)
+            option_kwargs.setdefault("continue_conversation", True)
+        elif req.checkpoint_token:
+            option_kwargs.setdefault("resume", req.checkpoint_token)
+
+        if req.request_id:
+            option_kwargs.setdefault("user", req.request_id)
 
         if thinking.max_tokens is not None:
             option_kwargs["max_thinking_tokens"] = thinking.max_tokens
@@ -495,6 +603,14 @@ class AnthropicAgentClient(LLM):
         if isinstance(structured, dict):
             return structured
         return None
+
+    def _extract_result_session_token(self, message: Any) -> str | None:
+        """Extract session continuation token from SDK `ResultMessage`."""
+        return get_attr_str(message, "session_id")
+
+    def _extract_result_checkpoint_token(self, message: Any) -> str | None:
+        """Extract checkpoint token from SDK `ResultMessage` when available."""
+        return get_attr_str(message, "user_message_uuid")
 
     def _usage_from_obj(self, usage_obj: Any) -> Usage:
         """Normalize usage counters from SDK result usage object/dict."""

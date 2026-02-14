@@ -146,6 +146,27 @@ class LiteLLMClient(ResponsesClientBase):
     def _with_transport_defaults(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Apply config-level transport defaults without overriding explicit extras."""
         out = dict(payload)
+
+        idempotency_key = out.pop("idempotency_key", None)
+        headers = out.get("headers")
+        header_map: dict[str, str] = {}
+        if isinstance(headers, dict):
+            for key, value in headers.items():
+                if isinstance(key, str) and isinstance(value, str):
+                    header_map[key] = value
+
+        if isinstance(idempotency_key, str) and idempotency_key:
+            header_map.setdefault("Idempotency-Key", idempotency_key)
+
+        metadata = out.get("metadata")
+        if isinstance(metadata, dict):
+            request_id = metadata.get("afk_request_id")
+            if isinstance(request_id, str) and request_id:
+                header_map.setdefault("X-Request-Id", request_id)
+
+        if header_map:
+            out["headers"] = header_map
+
         if self.config.api_base_url:
             out.setdefault("api_base", self.config.api_base_url)
         if self.config.api_key:

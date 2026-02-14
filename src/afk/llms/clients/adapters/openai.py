@@ -41,12 +41,14 @@ class OpenAIClient(ResponsesClientBase):
     async def _responses_create(self, payload: dict[str, Any]) -> Any:
         """Dispatch chat/stream payload to OpenAI Responses API."""
         client = self._build_client()
-        return await client.responses.create(**payload)
+        call_payload = self._with_transport_headers(payload)
+        return await client.responses.create(**call_payload)
 
     async def _embedding_create(self, payload: dict[str, Any]) -> Any:
         """Dispatch embedding payload to OpenAI embeddings API."""
         client = self._build_client()
-        return await client.embeddings.create(**payload)
+        call_payload = self._with_transport_headers(payload)
+        return await client.embeddings.create(**call_payload)
 
     def _message_to_responses_input_items(self, message: Message) -> list[dict[str, Any]]:
         """Convert one normalized message into OpenAI Responses input items."""
@@ -200,3 +202,29 @@ class OpenAIClient(ResponsesClientBase):
             kwargs["base_url"] = self.config.api_base_url
 
         return AsyncOpenAI(**kwargs)
+
+    def _with_transport_headers(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Map AFK transport keys into OpenAI request options/headers."""
+        out = dict(payload)
+        headers: dict[str, str] = {}
+
+        existing_headers = out.get("extra_headers")
+        if isinstance(existing_headers, dict):
+            for key, value in existing_headers.items():
+                if isinstance(key, str) and isinstance(value, str):
+                    headers[key] = value
+
+        idempotency_key = out.pop("idempotency_key", None)
+        if isinstance(idempotency_key, str) and idempotency_key:
+            headers.setdefault("Idempotency-Key", idempotency_key)
+
+        metadata = out.get("metadata")
+        if isinstance(metadata, dict):
+            request_id = metadata.get("afk_request_id")
+            if isinstance(request_id, str) and request_id:
+                headers.setdefault("X-Request-Id", request_id)
+
+        if headers:
+            out["extra_headers"] = headers
+
+        return out

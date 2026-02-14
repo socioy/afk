@@ -9,7 +9,10 @@ This module defines common provider-agnostic types used in LLM interactions.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Literal, NotRequired, TypeAlias, TypedDict
+from typing import TYPE_CHECKING, Any, AsyncIterator, Literal, NotRequired, Protocol, TypeAlias, TypedDict
+
+if TYPE_CHECKING:
+    from pydantic import BaseModel
 
 
 JSONPrimitive: TypeAlias = str | int | float | bool | None
@@ -112,6 +115,10 @@ class ToolCall:
 @dataclass(frozen=True, slots=True)
 class LLMResponse:
     text: str
+    request_id: str | None = None
+    provider_request_id: str | None = None
+    session_token: str | None = None
+    checkpoint_token: str | None = None
     structured_response: JSONObject | None = None
     tool_calls: list[ToolCall] = field(default_factory=list)
     finish_reason: str | None = None
@@ -134,6 +141,10 @@ class LLMRequest:
     """
 
     model: str
+    request_id: str | None = None
+    idempotency_key: str | None = None
+    session_token: str | None = None
+    checkpoint_token: str | None = None
     messages: list[Message] = field(default_factory=list)
     tools: list[ToolDefinition] | None = None
     tool_choice: ToolChoice | None = None
@@ -151,7 +162,7 @@ class LLMRequest:
 
 @dataclass(frozen=True, slots=True)
 class EmbeddingRequest:
-    model: str
+    model: str | None = None
     inputs: list[str] = field(default_factory=list)
     timeout_s: float | None = None
     metadata: JSONObject = field(default_factory=dict)
@@ -165,6 +176,10 @@ class LLMCapabilities:
     tool_calling: bool = False
     structured_output: bool = False
     embeddings: bool = False
+    interrupt: bool = False
+    session_control: bool = False
+    checkpoint_resume: bool = False
+    idempotency: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -228,3 +243,74 @@ LLMStreamEvent: TypeAlias = (
     | StreamErrorEvent
     | StreamCompletedEvent
 )
+
+
+@dataclass(frozen=True, slots=True)
+class LLMSessionSnapshot:
+    session_token: str | None = None
+    checkpoint_token: str | None = None
+    paused: bool = False
+    closed: bool = False
+
+
+class LLMStreamHandle(Protocol):
+    """
+    Control handle for a streaming chat request.
+
+    `events` yields normalized stream events from the underlying provider call.
+    `await_result` returns the final normalized response when completion occurs,
+    or `None` when the stream was cancelled/interrupted before completion.
+    """
+
+    @property
+    def events(self) -> AsyncIterator[LLMStreamEvent]:
+        ...
+
+    async def cancel(self) -> None:
+        ...
+
+    async def interrupt(self) -> None:
+        ...
+
+    async def await_result(self) -> LLMResponse | None:
+        ...
+
+
+class LLMSessionHandle(Protocol):
+    """
+    Provider/session continuity handle.
+
+    The agent layer remains responsible for prompt/tool orchestration; this
+    handle only manages transport-level session controls.
+    """
+
+    async def chat(
+        self,
+        req: LLMRequest,
+        *,
+        response_model: type["BaseModel"] | None = None,
+    ) -> LLMResponse:
+        ...
+
+    async def stream(
+        self,
+        req: LLMRequest,
+        *,
+        response_model: type["BaseModel"] | None = None,
+    ) -> LLMStreamHandle:
+        ...
+
+    async def pause(self) -> None:
+        ...
+
+    async def resume(self, session_token: str | None = None) -> None:
+        ...
+
+    async def interrupt(self) -> None:
+        ...
+
+    async def close(self) -> None:
+        ...
+
+    async def snapshot(self) -> LLMSessionSnapshot:
+        ...
