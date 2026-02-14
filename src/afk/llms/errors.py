@@ -39,3 +39,12 @@ class LLMInvalidResponseError(LLMError):
 
 class LLMConfigurationError(LLMError):
     pass
+
+
+class LLMCapabilityError(LLMError):
+    """
+    Raised when the selected provider adapter does not support a requested
+    capability (e.g., embeddings or streaming).
+    """
+
+    pass
