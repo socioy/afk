@@ -196,6 +196,16 @@ class PostgresMemoryStore(MemoryStore):
                 now_ms(),
             )
 
+    async def delete_state(self, thread_id: str, key: str) -> None:
+        self._ensure_setup()
+        pool = self._pool_required()
+        async with pool.acquire() as connection:
+            await connection.execute(
+                "DELETE FROM state_kv WHERE thread_id=$1 AND key=$2",
+                thread_id,
+                key,
+            )
+
     async def get_state(self, thread_id: str, key: str) -> JsonValue | None:
         self._ensure_setup()
         pool = self._pool_required()
@@ -229,6 +239,34 @@ class PostgresMemoryStore(MemoryStore):
         return {
             cast(str, row["key"]): cast(JsonValue, row["value_json"]) for row in rows
         }
+
+    async def replace_thread_events(
+        self,
+        thread_id: str,
+        events: list[MemoryEvent],
+    ) -> None:
+        self._ensure_setup()
+        pool = self._pool_required()
+        async with pool.acquire() as connection:
+            async with connection.transaction():
+                await connection.execute(
+                    "DELETE FROM events WHERE thread_id=$1",
+                    thread_id,
+                )
+                for event in events:
+                    await connection.execute(
+                        """
+                        INSERT INTO events (id, thread_id, user_id, type, timestamp, payload_json, tags_json)
+                        VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb)
+                        """,
+                        event.id,
+                        event.thread_id,
+                        event.user_id,
+                        event.type,
+                        event.timestamp,
+                        json_dumps(event.payload),
+                        json_dumps(event.tags),
+                    )
 
     async def upsert_long_term_memory(
         self,

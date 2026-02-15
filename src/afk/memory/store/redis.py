@@ -115,6 +115,11 @@ class RedisMemoryStore(MemoryStore):
         redis_client = self._redis()
         await redis_client.hset(self._state_key(thread_id), key, json_dumps(value))
 
+    async def delete_state(self, thread_id: str, key: str) -> None:
+        self._ensure_setup()
+        redis_client = self._redis()
+        await redis_client.hdel(self._state_key(thread_id), key)
+
     async def get_state(self, thread_id: str, key: str) -> JsonValue | None:
         self._ensure_setup()
         redis_client = self._redis()
@@ -135,6 +140,32 @@ class RedisMemoryStore(MemoryStore):
                 continue
             filtered_state[state_key] = json_loads(serialized_state_value)
         return dict(sorted(filtered_state.items(), key=lambda item: item[0]))
+
+    async def replace_thread_events(
+        self,
+        thread_id: str,
+        events: list[MemoryEvent],
+    ) -> None:
+        self._ensure_setup()
+        redis_client = self._redis()
+        events_key = self._events_key(thread_id)
+        pipeline = redis_client.pipeline()
+        pipeline.delete(events_key)
+        for event in events:
+            serialized_event = json_dumps(
+                {
+                    "id": event.id,
+                    "thread_id": event.thread_id,
+                    "user_id": event.user_id,
+                    "type": event.type,
+                    "timestamp": event.timestamp,
+                    "payload": event.payload,
+                    "tags": event.tags,
+                },
+            )
+            pipeline.lpush(events_key, serialized_event)
+        pipeline.ltrim(events_key, 0, self.events_max_per_thread - 1)
+        await pipeline.execute()
 
     async def upsert_long_term_memory(
         self,

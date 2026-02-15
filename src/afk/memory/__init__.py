@@ -17,6 +17,14 @@ from .store import (
 )
 from .vector import cosine_similarity
 from .factory import create_memory_store_from_env
+from .lifecycle import (
+    MemoryCompactionResult,
+    RetentionPolicy,
+    StateRetentionPolicy,
+    apply_event_retention,
+    apply_state_retention,
+    compact_thread_memory,
+)
 
 
 def __getattr__(name: str):
@@ -46,4 +54,10 @@ __all__ = [
     "RedisMemoryStore",
     "PostgresMemoryStore",
     "create_memory_store_from_env",
+    "RetentionPolicy",
+    "StateRetentionPolicy",
+    "MemoryCompactionResult",
+    "apply_event_retention",
+    "apply_state_retention",
+    "compact_thread_memory",
 ]

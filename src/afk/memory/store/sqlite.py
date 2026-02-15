@@ -176,6 +176,15 @@ class SQLiteMemoryStore(MemoryStore):
         )
         await db.commit()
 
+    async def delete_state(self, thread_id: str, key: str) -> None:
+        self._ensure_setup()
+        db = self._db()
+        await db.execute(
+            "DELETE FROM state_kv WHERE thread_id=? AND key=?",
+            (thread_id, key),
+        )
+        await db.commit()
+
     async def get_state(self, thread_id: str, key: str) -> JsonValue | None:
         self._ensure_setup()
         db = self._db()
@@ -208,6 +217,32 @@ class SQLiteMemoryStore(MemoryStore):
             cast(str, row["key"]): json_loads(cast(str, row["value_json"]))
             for row in rows
         }
+
+    async def replace_thread_events(
+        self,
+        thread_id: str,
+        events: list[MemoryEvent],
+    ) -> None:
+        self._ensure_setup()
+        db = self._db()
+        await db.execute("DELETE FROM events WHERE thread_id=?", (thread_id,))
+        for event in events:
+            await db.execute(
+                """
+                INSERT INTO events (id, thread_id, user_id, type, timestamp, payload_json, tags_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    event.id,
+                    event.thread_id,
+                    event.user_id,
+                    event.type,
+                    event.timestamp,
+                    json_dumps(event.payload),
+                    json_dumps(event.tags),
+                ),
+            )
+        await db.commit()
 
     async def upsert_long_term_memory(
         self,

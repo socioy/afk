@@ -138,3 +138,31 @@ class MemoryStore(ABC):
         min_score: float | None = None,
     ) -> list[tuple[LongTermMemory, float]]:
         """Vector similarity search over long-term memories."""
+
+    async def delete_state(self, thread_id: str, key: str) -> None:
+        """
+        Delete one thread-scoped state key.
+
+        Backends may override with a more efficient implementation.
+        """
+        _ = thread_id
+        _ = key
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not implement delete_state()"
+        )
+
+    async def replace_thread_events(
+        self,
+        thread_id: str,
+        events: list[MemoryEvent],
+    ) -> None:
+        """
+        Replace all events for a thread with `events` (chronological order).
+
+        Backends may override with a more efficient implementation.
+        """
+        _ = thread_id
+        _ = events
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not implement replace_thread_events()"
+        )

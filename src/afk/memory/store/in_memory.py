@@ -62,6 +62,11 @@ class InMemoryMemoryStore(MemoryStore):
         async with self._lock:
             self._state_by_thread_key[(thread_id, key)] = value
 
+    async def delete_state(self, thread_id: str, key: str) -> None:
+        self._ensure_setup()
+        async with self._lock:
+            self._state_by_thread_key.pop((thread_id, key), None)
+
     async def get_state(self, thread_id: str, key: str) -> JsonValue | None:
         self._ensure_setup()
         async with self._lock:
@@ -83,6 +88,15 @@ class InMemoryMemoryStore(MemoryStore):
                     continue
                 filtered_state[state_key] = state_value
             return dict(sorted(filtered_state.items(), key=lambda item: item[0]))
+
+    async def replace_thread_events(
+        self,
+        thread_id: str,
+        events: list[MemoryEvent],
+    ) -> None:
+        self._ensure_setup()
+        async with self._lock:
+            self._events_by_thread[thread_id] = list(events)
 
     async def upsert_long_term_memory(
         self,

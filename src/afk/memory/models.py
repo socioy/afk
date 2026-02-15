@@ -13,7 +13,7 @@ import json
 import time
 import uuid
 from typing import TypeAlias, cast
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, List, Literal, Optional
 
 EventType = Literal["tool_call", "tool_result", "message", "system", "trace"]
 JsonPrimitive: TypeAlias = str | int | float | bool | None
