@@ -1,0 +1,152 @@
+# AFK Tools System Walkthrough
+
+This guide explains the rest of the tooling stack with code-level flow diagrams.
+
+Primary code paths:
+
+- [afk/tools/core/decorator.py](../../src/afk/tools/core/decorator.py)
+- [afk/tools/core/base.py](../../src/afk/tools/core/base.py)
+- [afk/tools/registery.py](../../src/afk/tools/registery.py)
+- [afk/tools/prebuilts/runtime.py](../../src/afk/tools/prebuilts/runtime.py)
+- [afk/tools/prebuilts/skills.py](../../src/afk/tools/prebuilts/skills.py)
+- [afk/tools/security.py](../../src/afk/tools/security.py)
+
+## TL;DR
+
+- `@tool` wraps a function into a typed, validated `Tool`.
+- Hooks and middleware control behavior before/after tool logic.
+- `ToolRegistry` adds concurrency control, policies, and middleware for all tools.
+- Prebuilt runtime/skill tools are generated per run with path and command guards.
+
+## 1) Decorator to Tool Object Flow
+
+```mermaid
+flowchart TD
+    A["@tool(args_model=..., name=...)"] --> B["Build ToolSpec(JSON schema)"]
+    B --> C["Create Tool(spec, fn, args_model, hooks, middleware)"]
+    C --> D["Tool.call(raw_args, ctx, timeout)"]
+    D --> E["Pydantic validation"]
+    E --> F{"valid?"}
+    F -- "No" --> G["ToolResult(success=False, validation error)"]
+    F -- "Yes" --> H["Invoke tool function"]
+    H --> I["ToolResult(success=True, output)"]
+```
+
+## 2) Hook + Middleware Chain
+
+`Tool` execution order:
+
+1. prehooks
+2. middleware chain
+3. main tool function
+4. posthooks
+
+```mermaid
+sequenceDiagram
+    participant Caller
+    participant Tool
+    participant Pre as PreHooks
+    participant MW as Tool Middlewares
+    participant Fn as Tool Function
+    participant Post as PostHooks
+
+    Caller->>Tool: call(raw_args)
+    Tool->>Pre: run prehooks
+    Pre-->>Tool: transformed args
+    Tool->>MW: invoke middleware chain
+    MW->>Fn: call_next(args, ctx)
+    Fn-->>MW: output
+    MW-->>Tool: wrapped output
+    Tool->>Post: run posthooks(output, tool_name)
+    Post-->>Tool: transformed output
+    Tool-->>Caller: ToolResult
+```
+
+## 3) Registry Execution Flow
+
+`ToolRegistry.call(...)` flow:
+
+```mermaid
+flowchart TD
+    A["registry.call(name, raw_args, ctx, timeout)"] --> B["Lookup tool by name"]
+    B --> C["Apply registry policy hook (optional)"]
+    C --> D["Acquire concurrency semaphore"]
+    D --> E["Resolve effective timeout"]
+    E --> F["Run registry middleware chain"]
+    F --> G["Invoke tool.call(...)"]
+    G --> H["Record ToolCallRecord"]
+    H --> I["Return ToolResult"]
+```
+
+Key behavior:
+
+- timeout precedence: call arg -> tool default -> registry default
+- unknown tool: `ToolNotFoundError`
+- policy rejection: `ToolPolicyError`
+
+## 4) Prebuilt Runtime Filesystem Tools
+
+`build_runtime_tools(root_dir=...)` returns:
+
+- `list_directory`
+- `read_file`
+
+Safety model:
+
+- target path is resolved and must stay under `root_dir`
+- escaping root raises `SkillAccessError`
+
+```mermaid
+flowchart TD
+    A["list_directory/read_file call"] --> B["Resolve target path against root"]
+    B --> C{"inside root?"}
+    C -- "No" --> D["SkillAccessError"]
+    C -- "Yes" --> E["Read directory/file"]
+    E --> F["Apply max_entries or max_chars"]
+    F --> G["Return JSON-safe payload"]
+```
+
+## 5) Prebuilt Skill Tools
+
+`build_skill_tools(skills, policy)` returns:
+
+- `list_skills`
+- `read_skill_md`
+- `read_skill_file`
+- `run_skill_command`
+
+```mermaid
+flowchart TD
+    A["run_skill_command(command,args,cwd)"] --> B["Check allowlist"]
+    B --> C{"allowlisted?"}
+    C -- "No" --> D["SkillCommandDeniedError"]
+    C -- "Yes" --> E["Check shell-operator restrictions"]
+    E --> F{"safe?"}
+    F -- "No" --> D
+    F -- "Yes" --> G["Validate cwd under skill roots"]
+    G --> H["Execute subprocess with timeout"]
+    H --> I["Truncate stdout/stderr by policy"]
+    I --> J["Return command result payload"]
+```
+
+## 6) Security Layers For Tools
+
+Tool security can be applied at two levels:
+
+- pre-execution arg validation (`validate_tool_args_against_sandbox`)
+- post-execution output limiting (`apply_tool_output_limits`)
+
+```mermaid
+flowchart LR
+    A["Tool args"] --> B["Sandbox arg validation"]
+    B -->|allowed| C["Tool execution"]
+    B -->|blocked| D["Policy/error result"]
+    C --> E["Output truncation/sanitization"]
+    E --> F["Message returned to runner/LLM"]
+```
+
+## Runnable Examples
+
+- [examples/06_tool_registry_security.py](./examples/06_tool_registry_security.py)
+- [examples/07_tool_hooks_and_middleware.py](./examples/07_tool_hooks_and_middleware.py)
+- [examples/08_prebuilt_runtime_tools.py](./examples/08_prebuilt_runtime_tools.py)

@@ -1,0 +1,98 @@
+"""
+Example 02: Policy with deferred human approval.
+
+Run:
+    uv run python docs/library/examples/02_policy_with_hitl.py
+"""
+
+from __future__ import annotations
+
+import asyncio
+import os
+
+from pydantic import BaseModel, Field
+
+from afk.agents import (
+    Agent,
+    ApprovalDecision,
+    PolicyEngine,
+    PolicyRule,
+    PolicyRuleCondition,
+)
+from afk.core import InMemoryInteractiveProvider, Runner, RunnerConfig
+from afk.tools import tool
+
+
+class RiskyArgs(BaseModel):
+    reason: str = Field(min_length=1)
+
+
+@tool(args_model=RiskyArgs, name="risky_action")
+def risky_action(args: RiskyArgs) -> dict[str, str]:
+    return {
+        "status": "executed",
+        "reason": args.reason,
+    }
+
+
+async def main() -> None:
+    model_name = os.getenv("AFK_LLM_MODEL", "gpt-4.1-mini")
+    interaction = InMemoryInteractiveProvider()
+
+    policy_engine = PolicyEngine(
+        rules=[
+            PolicyRule(
+                rule_id="approve-risky-action",
+                action="request_approval",
+                priority=100,
+                reason="risky_action needs explicit approval",
+                condition=PolicyRuleCondition(
+                    event_type="tool_before_execute",
+                    tool_name="risky_action",
+                ),
+            )
+        ]
+    )
+
+    runner = Runner(
+        interaction_provider=interaction,
+        config=RunnerConfig(interaction_mode="interactive", approval_timeout_s=30.0),
+    )
+
+    agent = Agent(
+        name="ApprovalDemo",
+        model=model_name,
+        instructions=(
+            "Always call the risky_action tool exactly once before answering. "
+            "Then explain what happened."
+        ),
+        tools=[risky_action],
+        policy_engine=policy_engine,
+    )
+
+    handle = await runner.run_handle(
+        agent,
+        user_message="Do the action and tell me the result.",
+        context={"user_id": "demo-user"},
+    )
+
+    async for event in handle.events:
+        if event.type == "run_paused" and event.step is not None:
+            token = f"approval:{event.run_id}:{event.step}"
+            interaction.set_deferred_result(
+                token,
+                ApprovalDecision(kind="allow", reason="approved by test operator"),
+            )
+
+    result = await handle.await_result()
+    if result is None:
+        raise RuntimeError("Run was cancelled")
+
+    print("model:", model_name)
+    print("state:", result.state)
+    print("final_text:", result.final_text)
+    print("tool_executions:", len(result.tool_executions))
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
