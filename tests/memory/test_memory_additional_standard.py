@@ -57,13 +57,17 @@ def test_memory_store_base_context_manager_with_minimal_impl():
             self._ensure_setup()
             return {}
 
-        async def upsert_long_term_memory(self, memory: LongTermMemory, *, embedding=None):
+        async def upsert_long_term_memory(
+            self, memory: LongTermMemory, *, embedding=None
+        ):
             self._ensure_setup()
 
         async def delete_long_term_memory(self, user_id: str | None, memory_id: str):
             self._ensure_setup()
 
-        async def list_long_term_memories(self, user_id: str | None, *, scope=None, limit=100):
+        async def list_long_term_memories(
+            self, user_id: str | None, *, scope=None, limit=100
+        ):
             self._ensure_setup()
             return []
 
@@ -97,4 +101,3 @@ def test_memory_store_base_context_manager_with_minimal_impl():
             await store.get_recent_events("thread")
 
     run_async(scenario())
-

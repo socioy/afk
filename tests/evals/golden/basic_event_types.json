@@ -1,0 +1,8 @@
+[
+  "run_started",
+  "step_started",
+  "policy_decision",
+  "llm_called",
+  "llm_completed",
+  "run_completed"
+]

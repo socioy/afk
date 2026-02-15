@@ -117,9 +117,15 @@ def test_long_term_memory_list_text_search_vector_search_and_delete():
     async def scenario():
         await store.setup()
 
-        mem1 = make_memory("m1", "u1", "global", "Python unit testing", 1000, tags=["tests"])
-        mem2 = make_memory("m2", "u1", "project:a", "Fast sqlite storage", 2000, tags=["db"])
-        mem3 = make_memory("m3", "u2", "global", "Different user memory", 3000, tags=["user"])
+        mem1 = make_memory(
+            "m1", "u1", "global", "Python unit testing", 1000, tags=["tests"]
+        )
+        mem2 = make_memory(
+            "m2", "u1", "project:a", "Fast sqlite storage", 2000, tags=["db"]
+        )
+        mem3 = make_memory(
+            "m3", "u2", "global", "Different user memory", 3000, tags=["user"]
+        )
 
         await store.upsert_long_term_memory(mem1, embedding=[1.0, 0.0])
         await store.upsert_long_term_memory(mem2, embedding=[0.7, 0.7])
@@ -184,7 +190,9 @@ def test_vector_search_ignores_memories_without_embedding_and_applies_scope():
         await store.upsert_long_term_memory(mem1, embedding=[0.5, 0.5])
         await store.upsert_long_term_memory(mem2)
 
-        scoped = await store.search_long_term_memory_vector("u1", [0.5, 0.5], scope="scope:a")
+        scoped = await store.search_long_term_memory_vector(
+            "u1", [0.5, 0.5], scope="scope:a"
+        )
         assert [m.id for m, _ in scoped] == ["m1"]
 
         out_of_scope = await store.search_long_term_memory_vector(
@@ -195,4 +203,3 @@ def test_vector_search_ignores_memories_without_embedding_and_applies_scope():
         await store.close()
 
     run_async(scenario())
-

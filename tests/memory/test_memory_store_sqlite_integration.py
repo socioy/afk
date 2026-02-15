@@ -77,7 +77,11 @@ def test_sqlite_store_end_to_end_crud_and_search(tmp_path):
 
         assert await store.get_state("th1", "a_first") == {"v": 1}
         assert await store.get_state("th1", "missing") is None
-        assert list((await store.list_state("th1")).keys()) == ["a_first", "a_next", "z_last"]
+        assert list((await store.list_state("th1")).keys()) == [
+            "a_first",
+            "a_next",
+            "z_last",
+        ]
         assert await store.list_state("th1", prefix="a_") == {
             "a_first": {"v": 1},
             "a_next": {"v": 2},
@@ -101,7 +105,9 @@ def test_sqlite_store_end_to_end_crud_and_search(tmp_path):
         assert [m.id for m in text_hits] == ["m1"]
         assert await store.search_long_term_memory_text("u1", "   ") == []
 
-        vector_hits = await store.search_long_term_memory_vector("u1", [1.0, 0.0], limit=5)
+        vector_hits = await store.search_long_term_memory_vector(
+            "u1", [1.0, 0.0], limit=5
+        )
         assert [m.id for m, _ in vector_hits] == ["m1", "m2"]
 
         filtered_hits = await store.search_long_term_memory_vector(
@@ -170,8 +176,10 @@ def test_sqlite_store_persists_data_across_reopen(tmp_path):
         assert [e.id for e in await reopened.get_recent_events("thread")] == ["e1"]
         assert await reopened.get_state("thread", "session") == {"id": 1}
         assert [m.id for m in await reopened.list_long_term_memories("u1")] == ["m1"]
-        assert [m.id for m, _ in await reopened.search_long_term_memory_vector("u1", [0.3, 0.7])] == ["m1"]
+        assert [
+            m.id
+            for m, _ in await reopened.search_long_term_memory_vector("u1", [0.3, 0.7])
+        ] == ["m1"]
         await reopened.close()
 
     run_async(read_phase())
-

@@ -6,9 +6,9 @@ import pytest
 from pydantic import BaseModel
 
 from afk.tools import ToolContext, ToolRegistry, ToolSpec, export_tools, tool
-from afk.tools.base import Middleware
-from afk.tools.export import normalize_json_schema
-from afk.tools.registry import RegistryMiddleware
+from afk.tools.core.base import Middleware
+from afk.tools.core.export import normalize_json_schema
+from afk.tools.registery import RegistryMiddleware
 
 
 def run_async(coro):
@@ -131,7 +131,9 @@ def test_middleware_signature_validation_rejects_varargs():
         return None
 
     with pytest.raises(Exception, match="cannot have \\*args or \\*\\*kwargs"):
-        Middleware(spec=ToolSpec(name="bad", description="", parameters_schema={}), fn=bad)
+        Middleware(
+            spec=ToolSpec(name="bad", description="", parameters_schema={}), fn=bad
+        )
 
 
 def test_registry_middleware_signature_validation_rejects_varargs():

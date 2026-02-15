@@ -7,7 +7,9 @@ requires-python = ">=3.13"
 dependencies = [
     "aiosqlite>=0.22.1",
     "asyncpg>=0.31.0",
+    "claude-agent-sdk>=0.1.0",
     "litellm>=1.81.9",
     "numpy>=2.3.0",
+    "openai>=1.0.0",
     "redis>=7.1.1",
 ]

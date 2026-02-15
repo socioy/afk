@@ -23,9 +23,8 @@ from afk.tools import (
     tool,
     toolspec_to_litellm_tool,
 )
-from afk.tools.errors import (
+from afk.tools.core.errors import (
     ToolAlreadyRegisteredError,
-    ToolExecutionError,
     ToolNotFoundError,
     ToolPolicyError,
     ToolTimeoutError,
@@ -90,7 +89,9 @@ def test_tool_function_signature_variants_are_supported():
         return f"{ctx.request_id}:{args.text}"
 
     result_1 = run_async(args_only.call({"text": "hello"}))
-    result_2 = run_async(args_ctx.call({"text": "hello"}, ctx=ToolContext(user_id="u1")))
+    result_2 = run_async(
+        args_ctx.call({"text": "hello"}, ctx=ToolContext(user_id="u1"))
+    )
     result_3 = run_async(
         ctx_args.call({"text": "hello"}, ctx=ToolContext(request_id="r-123"))
     )
@@ -431,10 +432,16 @@ def test_registry_set_middlewares_replaces_existing_chain():
 
     registry = ToolRegistry(middlewares=[first])
     registry.register(echo_replace)
-    assert run_async(registry.call("echo_replace", {"text": "x"})).metadata["chain"] == "first"
+    assert (
+        run_async(registry.call("echo_replace", {"text": "x"})).metadata["chain"]
+        == "first"
+    )
 
     registry.set_middlewares([second])
-    assert run_async(registry.call("echo_replace", {"text": "x"})).metadata["chain"] == "second"
+    assert (
+        run_async(registry.call("echo_replace", {"text": "x"})).metadata["chain"]
+        == "second"
+    )
 
 
 def test_registry_middleware_decorator_preserves_name_and_description():
