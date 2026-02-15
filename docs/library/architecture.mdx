@@ -1,5 +1,5 @@
 ---
-title: AFK Architecture
+title: Architecture
 description: System architecture for agent execution, policy checks, tool orchestration, persistence, and telemetry.
 ---
 
@@ -20,14 +20,15 @@ This page describes how the runtime is assembled from `afk` modules and how exec
 
 Related deep dives:
 
-- [Developer Onboarding Guide](./developer-guide)
-- [Tool Call Lifecycle](./tool-call-lifecycle)
-- [LLM Interaction Flow](./llm-interaction)
-- [Agentic Behavior and Orchestration](./agentic-behavior)
-- [Checkpoint and Resume Schema](./checkpoint-schema)
-- [Run Event Contract](./run-event-contract)
-- [Failure Policy Matrix](./failure-policy-matrix)
-- [Security Model](./security-model)
+- [Developer Guide](/library/developer-guide)
+- [Tool Call Lifecycle](/library/tool-call-lifecycle)
+- [Agent Skills](/library/agent-skills)
+- [LLM Flow](/library/llm-interaction)
+- [Agentic Orchestration](/library/agentic-behavior)
+- [Checkpoint & Resume](/library/checkpoint-schema)
+- [Run Event Contract](/library/run-event-contract)
+- [Failure Policies](/library/failure-policy-matrix)
+- [Security Model](/library/security-model)
 
 ## Component Diagram
 
@@ -208,7 +209,7 @@ Sinks:
 
 ## Related Examples
 
-- [examples/01_minimal_chat_agent.py](./examples/01_minimal_chat_agent.py)
-- [examples/02_policy_with_hitl.py](./examples/02_policy_with_hitl.py)
-- [examples/03_subagents_with_router.py](./examples/03_subagents_with_router.py)
-- [examples/04_resume_and_compact.py](./examples/04_resume_and_compact.py)
+- [examples/01_minimal_chat_agent.py](/library/examples/index#01-minimal-chat-agent)
+- [examples/02_policy_with_hitl.py](/library/examples/index#02-policy-with-hitl)
+- [examples/03_subagents_with_router.py](/library/examples/index#03-subagents-with-router)
+- [examples/04_resume_and_compact.py](/library/examples/index#04-resume-and-compact)

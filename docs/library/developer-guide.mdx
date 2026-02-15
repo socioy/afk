@@ -1,29 +1,28 @@
 ---
-title: Developer Onboarding Guide
-description: Practical build order, setup, troubleshooting, and production defaults for AFK agents.
+title: Developer Guide
+description: Fastest path to build your first AFK agent and harden it for production.
 ---
 
-This guide is optimized for engineers shipping their first production agent with AFK.
+This page is optimized for immediate implementation with AFK (Agent Forge Kit).
 
-## What You Need
+## First 20 Minutes
 
-- Python `>=3.13`
-- One configured LLM adapter
-- Repository dependencies installed
+<Steps>
+  <Step title="Install dependencies">
+    <CodeGroup>
 
-Install dependencies:
-
-```bash
-uv sync
+```bash uv
+uv pip install afk pydantic
 ```
 
-Or:
-
-```bash
-pip install -e .
+```bash pip
+pip install afk pydantic
 ```
 
-## Environment Setup
+    </CodeGroup>
+  </Step>
+
+  <Step title="Configure environment">
 
 ```bash
 export AFK_LLM_ADAPTER=openai
@@ -31,15 +30,22 @@ export AFK_LLM_MODEL=gpt-4.1-mini
 export AFK_LLM_API_KEY=your_key_here
 ```
 
-Supported adapter examples include `openai`, `litellm`, and `anthropic_agent`.
+  </Step>
 
-## First Successful Run
+  <Step title="Run first example script">
 
 ```bash
-uv run python docs/library/examples/01_minimal_chat_agent.py
+python 01_minimal_chat_agent.py
 ```
 
-If this fails, jump to [Troubleshooting](#troubleshooting).
+  </Step>
+
+  <Step title="Add safety before side effects">Move to `02_policy_with_hitl.py` before enabling write/delete/action tools.</Step>
+</Steps>
+
+<Tip>
+Create local script files using the embedded examples in <a href="/library/examples/index">Examples</a>, then run them with the filenames shown in each accordion.
+</Tip>
 
 ## Recommended Build Order
 
@@ -66,8 +72,6 @@ If this fails, jump to [Troubleshooting](#troubleshooting).
 
 ## Public Import Patterns
 
-Use these imports in app code:
-
 ```python
 from afk.agents import Agent
 from afk.core import Runner, RunnerConfig
@@ -76,11 +80,23 @@ from afk.tools import tool
 from afk.memory import create_memory_store_from_env
 ```
 
-Avoid importing through `src/...` paths.
+<Warning>
+Do not import from `src/...` in app code. Use public imports (`afk.*`) only.
+</Warning>
+
+## Core Workflow
+
+1. Define a minimal `Agent` and validate end-to-end response flow.
+2. Add typed tools with strict argument schemas.
+3. Add policy decisions for risky tool calls.
+4. Add sandbox and output limits for tool safety.
+5. Add memory persistence and resume verification.
+6. Add tests/evals for regressions.
 
 ## Common Implementation Patterns
 
-### Agent + Typed Tool
+<Tabs>
+  <Tab title="Agent + Typed Tool">
 
 ```python
 from pydantic import BaseModel, Field
@@ -90,7 +106,11 @@ from afk.tools import tool
 class LookupArgs(BaseModel):
     query: str = Field(min_length=1)
 
-@tool(args_model=LookupArgs, name="lookup")
+@tool(
+    args_model=LookupArgs,
+    name="lookup",
+    description="Look up canonical product/internal documentation content by query.",
+)
 def lookup(args: LookupArgs) -> dict[str, str]:
     return {"query": args.query}
 
@@ -101,7 +121,8 @@ agent = Agent(
 )
 ```
 
-### Runner With Explicit Controls
+  </Tab>
+  <Tab title="Runner Controls">
 
 ```python
 from afk.core import Runner, RunnerConfig
@@ -114,35 +135,46 @@ runner = Runner(
 )
 ```
 
+  </Tab>
+</Tabs>
+
 ## Troubleshooting
 
-### Unknown adapter
+<AccordionGroup>
+  <Accordion title="Unknown adapter">
+    <ul>
+      <li>Verify <code>AFK_LLM_ADAPTER</code>.</li>
+      <li>Check available adapters with <code>afk.llms.available_llm_adapters()</code>.</li>
+    </ul>
+  </Accordion>
 
-- Verify `AFK_LLM_ADAPTER`.
-- Check available adapters with `afk.llms.available_llm_adapters()`.
+  <Accordion title="Model routes to wrong provider">
+    <p>Use explicit prefixes when needed:</p>
+    <ul>
+      <li><code>openai/gpt-4.1-mini</code></li>
+      <li><code>anthropic/claude-sonnet-4</code></li>
+    </ul>
+  </Accordion>
 
-### Model routes to wrong provider
+  <Accordion title="Run pauses waiting for approval/input">
+    <ul>
+      <li>Check <code>RunnerConfig.interaction_mode</code>.</li>
+      <li>For non-headless mode, ensure <code>interaction_provider</code> is configured.</li>
+      <li>Set timeout/fallback behavior in <code>RunnerConfig</code>.</li>
+    </ul>
+  </Accordion>
 
-Use explicit prefixes when needed:
+  <Accordion title="Tool call denied">
+    <ul>
+      <li>Inspect policy decision (<code>PolicyEngine</code> rules).</li>
+      <li>Verify sandbox profile allowlists.</li>
+    </ul>
+  </Accordion>
+</AccordionGroup>
 
-- `openai/gpt-4.1-mini`
-- `anthropic/claude-sonnet-4`
-
-### Run pauses waiting for approval/input
-
-- Check `RunnerConfig.interaction_mode`.
-- For non-headless mode, ensure `interaction_provider` is configured.
-- Set timeout/fallback behavior in `RunnerConfig`.
-
-### Tool call denied
-
-- Inspect policy decision (`PolicyEngine` rules).
-- Verify sandbox profile allowlists.
-
-## Read Next
+## Read Next (By Need)
 
 - [Architecture](/library/architecture)
-- [API Reference](/library/api-reference)
 - [Tool Call Lifecycle](/library/tool-call-lifecycle)
-- [Tools System Walkthrough](/library/tools-system-walkthrough)
 - [Security Model](/library/security-model)
+- [API Reference](/library/api-reference)

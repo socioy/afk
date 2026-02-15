@@ -1,5 +1,5 @@
 ---
-title: AFK Tools System Walkthrough
+title: Tools Walkthrough
 description: Source-backed walkthrough of AFK tool registration, middleware, hooks, and security.
 ---
 
@@ -7,16 +7,17 @@ This guide explains the rest of the tooling stack with code-level flow diagrams.
 
 Primary code paths:
 
-- [afk/tools/core/decorator.py](../../src/afk/tools/core/decorator.py)
-- [afk/tools/core/base.py](../../src/afk/tools/core/base.py)
-- [afk/tools/registery.py](../../src/afk/tools/registery.py)
-- [afk/tools/prebuilts/runtime.py](../../src/afk/tools/prebuilts/runtime.py)
-- [afk/tools/prebuilts/skills.py](../../src/afk/tools/prebuilts/skills.py)
-- [afk/tools/security.py](../../src/afk/tools/security.py)
+- [afk/tools/core/decorator.py](https://github.com/socioy/afk/blob/main/src/afk/tools/core/decorator.py)
+- [afk/tools/core/base.py](https://github.com/socioy/afk/blob/main/src/afk/tools/core/base.py)
+- [afk/tools/registery.py](https://github.com/socioy/afk/blob/main/src/afk/tools/registery.py)
+- [afk/tools/prebuilts/runtime.py](https://github.com/socioy/afk/blob/main/src/afk/tools/prebuilts/runtime.py)
+- [afk/tools/prebuilts/skills.py](https://github.com/socioy/afk/blob/main/src/afk/tools/prebuilts/skills.py)
+- [afk/tools/security.py](https://github.com/socioy/afk/blob/main/src/afk/tools/security.py)
 
 ## TL;DR
 
 - `@tool` wraps a function into a typed, validated `Tool`.
+- `description` is exported to the model and improves tool selection quality.
 - Hooks and middleware control behavior before/after tool logic.
 - `ToolRegistry` adds concurrency control, policies, and middleware for all tools.
 - Prebuilt runtime/skill tools are generated per run with path and command guards.
@@ -25,7 +26,7 @@ Primary code paths:
 
 ```mermaid
 flowchart TD
-    A["@tool(args_model=..., name=...)"] --> B["Build ToolSpec(JSON schema)"]
+    A["@tool(args_model=..., name=..., description=...)"] --> B["Build ToolSpec(name, description, JSON schema)"]
     B --> C["Create Tool(spec, fn, args_model, hooks, middleware)"]
     C --> D["Tool.call(raw_args, ctx, timeout)"]
     D --> E["Pydantic validation"]
@@ -33,6 +34,22 @@ flowchart TD
     F -- "No" --> G["ToolResult(success=False, validation error)"]
     F -- "Yes" --> H["Invoke tool function"]
     H --> I["ToolResult(success=True, output)"]
+```
+
+### Why `description` matters
+
+- `ToolRegistry.to_openai_function_tools()` sends `name`, `description`, and `parameters` to the LLM.
+- Better descriptions reduce wrong-tool calls and improve argument quality.
+- If you omit `description`, AFK uses the function docstring first line as fallback.
+
+```python
+@tool(
+    args_model=SearchArgs,
+    name="search_docs",
+    description="Search internal docs by query and return top relevant snippets.",
+)
+async def search_docs(args: SearchArgs) -> dict:
+    ...
 ```
 
 ## 2) Hook + Middleware Chain
@@ -118,6 +135,8 @@ flowchart TD
 - `read_skill_file`
 - `run_skill_command`
 
+Deep dive: [Agent Skills](/library/agent-skills)
+
 ```mermaid
 flowchart TD
     A["run_skill_command(command,args,cwd)"] --> B["Check allowlist"]
@@ -150,6 +169,6 @@ flowchart LR
 
 ## Runnable Examples
 
-- [examples/06_tool_registry_security.py](./examples/06_tool_registry_security.py)
-- [examples/07_tool_hooks_and_middleware.py](./examples/07_tool_hooks_and_middleware.py)
-- [examples/08_prebuilt_runtime_tools.py](./examples/08_prebuilt_runtime_tools.py)
+- [examples/06_tool_registry_security.py](/library/examples/index#06-tool-registry-security)
+- [examples/07_tool_hooks_and_middleware.py](/library/examples/index#07-tool-hooks-and-middleware)
+- [examples/08_prebuilt_runtime_tools.py](/library/examples/index#08-prebuilt-runtime-tools)

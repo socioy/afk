@@ -1,8 +1,9 @@
+````python 08_prebuilt_runtime_tools.py
 """
 Example 08: Prebuilt runtime filesystem tools.
 
 Run:
-    uv run python docs/library/examples/08_prebuilt_runtime_tools.py
+    python 08_prebuilt_runtime_tools.py
 """
 
 from __future__ import annotations
@@ -14,7 +15,13 @@ from afk.tools import ToolRegistry, build_runtime_tools
 
 
 async def main() -> None:
-    root = (Path.cwd() / "docs" / "library").resolve()
+    root = (Path.cwd() / ".afk_runtime_tools_demo").resolve()
+    root.mkdir(parents=True, exist_ok=True)
+    (root / "README.txt").write_text(
+        "AFK runtime tools demo file.\nThis file is safe to read.",
+        encoding="utf-8",
+    )
+
     runtime_tools = build_runtime_tools(root_dir=root)
 
     registry = ToolRegistry()
@@ -31,7 +38,7 @@ async def main() -> None:
     read_result = await registry.call(
         "read_file",
         {
-            "path": "index.md",
+            "path": "README.txt",
             "max_chars": 500,
         },
     )
@@ -44,3 +51,4 @@ async def main() -> None:
 
 if __name__ == "__main__":
     asyncio.run(main())
+````

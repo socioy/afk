@@ -1,5 +1,5 @@
 ---
-title: Security Model
+title: Security
 description: Tool trust boundaries, sandbox enforcement, and output sanitization behavior in AFK.
 ---
 
@@ -20,10 +20,10 @@ This document explains AFK's security boundaries for prompt safety, tool executi
 
 Primary code paths:
 
-- [afk/agents/security.py](../../src/afk/agents/security.py)
-- [afk/core/runner_execution.py](../../src/afk/core/runner_execution.py)
-- [afk/tools/security.py](../../src/afk/tools/security.py)
-- [afk/core/runner_types.py](../../src/afk/core/runner_types.py)
+- [afk/agents/security.py](https://github.com/socioy/afk/blob/main/src/afk/agents/security.py)
+- [afk/core/runner_execution.py](https://github.com/socioy/afk/blob/main/src/afk/core/runner_execution.py)
+- [afk/tools/security.py](https://github.com/socioy/afk/blob/main/src/afk/tools/security.py)
+- [afk/core/runner_types.py](https://github.com/socioy/afk/blob/main/src/afk/core/runner_types.py)
 
 ## Trust Boundaries
 
@@ -144,4 +144,4 @@ runner = Runner(
 
 ## Related Example
 
-- [examples/06_tool_registry_security.py](./examples/06_tool_registry_security.py)
+- [examples/06_tool_registry_security.py](/library/examples/index#06-tool-registry-security)

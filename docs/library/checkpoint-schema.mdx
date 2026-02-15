@@ -1,5 +1,5 @@
 ---
-title: Checkpoint and Resume Schema
+title: Checkpoint & Resume
 description: Checkpoint data model, lifecycle phases, resume semantics, and corruption safeguards.
 ---
 
@@ -20,11 +20,11 @@ This document defines runtime checkpoint keys, phases, and payload expectations.
 
 Primary code paths:
 
-- [afk/core/runner_internals.py](../../src/afk/core/runner_internals.py)
-- [afk/core/runner_execution.py](../../src/afk/core/runner_execution.py)
-- [afk/core/runner_interaction.py](../../src/afk/core/runner_interaction.py)
-- [afk/agents/runtime.py](../../src/afk/agents/runtime.py)
-- [afk/agents/versioning.py](../../src/afk/agents/versioning.py)
+- [afk/core/runner_internals.py](https://github.com/socioy/afk/blob/main/src/afk/core/runner_internals.py)
+- [afk/core/runner_execution.py](https://github.com/socioy/afk/blob/main/src/afk/core/runner_execution.py)
+- [afk/core/runner_interaction.py](https://github.com/socioy/afk/blob/main/src/afk/core/runner_interaction.py)
+- [afk/agents/runtime.py](https://github.com/socioy/afk/blob/main/src/afk/agents/runtime.py)
+- [afk/agents/versioning.py](https://github.com/socioy/afk/blob/main/src/afk/agents/versioning.py)
 
 ## Key Families
 
@@ -132,7 +132,7 @@ State retention keeps resume-critical keys by design:
 - bounded effect rows per run
 
 Reference implementation:
-- [afk/memory/lifecycle.py](../../src/afk/memory/lifecycle.py)
+- [afk/memory/lifecycle.py](https://github.com/socioy/afk/blob/main/src/afk/memory/lifecycle.py)
 
 ## Implementation Checklist
 
@@ -144,4 +144,4 @@ Reference implementation:
 
 ## Related Example
 
-- [examples/04_resume_and_compact.py](./examples/04_resume_and_compact.py)
+- [examples/04_resume_and_compact.py](/library/examples/index#04-resume-and-compact)

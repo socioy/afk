@@ -1,8 +1,9 @@
+````python 01_minimal_chat_agent.py
 """
 Example 01: Minimal chat agent with one typed tool.
 
 Run:
-    uv run python docs/library/examples/01_minimal_chat_agent.py
+    python 01_minimal_chat_agent.py
 """
 
 from __future__ import annotations
@@ -20,7 +21,11 @@ class SumArgs(BaseModel):
     numbers: list[float] = Field(min_length=1, max_length=50)
 
 
-@tool(args_model=SumArgs, name="sum_numbers")
+@tool(
+    args_model=SumArgs,
+    name="sum_numbers",
+    description="Add a list of numbers and return the numeric sum.",
+)
 def sum_numbers(args: SumArgs) -> dict[str, float]:
     return {"sum": float(sum(args.numbers))}
 
@@ -53,3 +58,4 @@ async def main() -> None:
 
 if __name__ == "__main__":
     asyncio.run(main())
+````

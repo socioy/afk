@@ -1,5 +1,5 @@
 ---
-title: LLM Interaction Flow
+title: LLM Flow
 description: Detailed LLM request lifecycle, retries, structured output flow, and runtime contracts.
 ---
 
@@ -20,11 +20,11 @@ This document describes how AFK constructs, validates, executes, retries, and re
 
 Primary code paths:
 
-- [afk/core/runner_execution.py](../../src/afk/core/runner_execution.py)
-- [afk/core/runner_internals.py](../../src/afk/core/runner_internals.py)
-- [afk/llms/llm.py](../../src/afk/llms/llm.py)
-- [afk/llms/factory.py](../../src/afk/llms/factory.py)
-- [afk/agents/resolution.py](../../src/afk/agents/resolution.py)
+- [afk/core/runner_execution.py](https://github.com/socioy/afk/blob/main/src/afk/core/runner_execution.py)
+- [afk/core/runner_internals.py](https://github.com/socioy/afk/blob/main/src/afk/core/runner_internals.py)
+- [afk/llms/llm.py](https://github.com/socioy/afk/blob/main/src/afk/llms/llm.py)
+- [afk/llms/factory.py](https://github.com/socioy/afk/blob/main/src/afk/llms/factory.py)
+- [afk/agents/resolution.py](https://github.com/socioy/afk/blob/main/src/afk/agents/resolution.py)
 
 ## Runner-Side LLM Call Flow
 
@@ -156,4 +156,4 @@ Checkpoint phases:
 
 ## Related Example
 
-- [examples/05_direct_llm_structured_output.py](./examples/05_direct_llm_structured_output.py)
+- [examples/05_direct_llm_structured_output.py](/library/examples/index#05-direct-llm-structured-output)

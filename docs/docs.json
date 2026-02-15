@@ -1,11 +1,37 @@
 {
   "$schema": "https://mintlify.com/schema.json",
-  "name": "AFK Python",
+  "name": "AFK",
+  "logo": {
+    "light": "/logo-light.svg",
+    "dark": "/logo-dark.svg",
+    "href": "https://github.com/socioy/afk"
+  },
   "theme": "mint",
   "layout": "sidenav",
   "favicon": "/favicon.svg",
   "topbar": {
     "style": "gradient"
+  },
+  "topbarCtaButton": {
+    "type": "github",
+    "url": "https://github.com/socioy/afk"
+  },
+  "topbarLinks": [
+    {
+      "type": "link",
+      "name": "Examples",
+      "url": "/library/examples/index",
+      "arrow": false
+    },
+    {
+      "type": "link",
+      "name": "API",
+      "url": "/library/api-reference",
+      "arrow": false
+    }
+  ],
+  "sidebar": {
+    "items": "undecorated"
   },
   "rounded": "default",
   "colors": {
@@ -13,38 +39,35 @@
     "light": "#2FB67E",
     "dark": "#084C38"
   },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/socioy/afk"
+    }
+  },
   "navigation": {
     "groups": [
       {
-        "group": "Get Started",
+        "group": "Start",
         "pages": [
           "index",
-          "library/index",
           "library/developer-guide",
-          "library/examples/index"
+          "library/examples/index",
+          "library/overview"
         ]
       },
       {
-        "group": "Core Concepts",
+        "group": "Concepts",
         "pages": [
           "library/architecture",
-          "library/tools-system-walkthrough",
-          "library/tool-call-lifecycle",
           "library/llm-interaction",
+          "library/tool-call-lifecycle",
+          "library/tools-system-walkthrough",
+          "library/agent-skills",
           "library/agentic-behavior",
-          "library/security-model",
           "library/checkpoint-schema",
-          "library/run-event-contract",
-          "library/failure-policy-matrix"
-        ]
-      },
-      {
-        "group": "Reference",
-        "pages": [
-          "library/api-reference",
-          "library/public-imports-and-function-improvement",
-          "library/tested-behaviors",
-          "library/full-module-reference"
+          "library/security-model",
+          "library/failure-policy-matrix",
+          "library/run-event-contract"
         ]
       },
       {
@@ -55,6 +78,15 @@
           "llms/adapters",
           "llms/control-and-session",
           "llms/agent-integration"
+        ]
+      },
+      {
+        "group": "Reference",
+        "pages": [
+          "library/api-reference",
+          "library/public-imports-and-function-improvement",
+          "library/tested-behaviors",
+          "library/full-module-reference"
         ]
       }
     ]

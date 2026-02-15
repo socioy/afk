@@ -1,5 +1,5 @@
 ---
-title: Public Imports and Function Improvement
+title: Public Imports
 description: Public import rules and extension patterns for stable AFK integration code.
 ---
 
@@ -73,7 +73,11 @@ class SearchArgs(BaseModel):
     query: str = Field(min_length=2)
     limit: int = Field(default=5, ge=1, le=20)
 
-@tool(args_model=SearchArgs, name="search_docs")
+@tool(
+    args_model=SearchArgs,
+    name="search_docs",
+    description="Search internal docs for relevant passages and return ranked hits.",
+)
 async def search_docs(args: SearchArgs) -> dict:
     return {"query": args.query, "hits": [], "limit": args.limit}
 ```
@@ -99,6 +103,6 @@ If a junior engineer can build features with only `from afk...` imports, docs ar
 
 ## Runnable `.py` Examples
 
-- [examples/01_minimal_chat_agent.py](./examples/01_minimal_chat_agent.py)
-- [examples/02_policy_with_hitl.py](./examples/02_policy_with_hitl.py)
-- [examples/05_direct_llm_structured_output.py](./examples/05_direct_llm_structured_output.py)
+- [examples/01_minimal_chat_agent.py](/library/examples/index#01-minimal-chat-agent)
+- [examples/02_policy_with_hitl.py](/library/examples/index#02-policy-with-hitl)
+- [examples/05_direct_llm_structured_output.py](/library/examples/index#05-direct-llm-structured-output)

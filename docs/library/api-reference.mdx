@@ -1,5 +1,5 @@
 ---
-title: AFK API Reference
+title: API Reference
 description: Complete public API reference for afk.agents, afk.core, afk.llms, afk.tools, afk.memory, and afk.evals.
 ---
 
@@ -8,8 +8,8 @@ This reference covers the public API exported by `afk/*/__init__.py`, plus key r
 ## How To Use This Document
 
 - Use this file when you already know which package area you need (`afk.agents`, `afk.core`, `afk.tools`, and so on).
-- For first-time onboarding, start with [Developer Onboarding Guide](./developer-guide).
-- For complete symbol-level internal map, use [Full Module Reference](./full-module-reference).
+- For first-time onboarding, start with [Developer Guide](/library/developer-guide).
+- For complete symbol-level internal map, use [Full Module Reference](/library/full-module-reference).
 
 ## Quick Navigation By Task
 
@@ -43,31 +43,32 @@ Do not import via `src/...` paths in integration code.
 
 Companion references:
 
-- [Developer Onboarding Guide](./developer-guide)
-- [Examples Runbook](./examples/index)
-- [Architecture](./architecture)
-- [Public Imports and Function Improvement](./public-imports-and-function-improvement)
-- [Full Module Reference (all source modules)](./full-module-reference)
-- [Tested Behaviors and Edge Cases](./tested-behaviors)
-- [Tool Call Lifecycle](./tool-call-lifecycle)
-- [Tools System Walkthrough](./tools-system-walkthrough)
-- [LLM Interaction Flow](./llm-interaction)
-- [Agentic Behavior and Orchestration](./agentic-behavior)
-- [Checkpoint and Resume Schema](./checkpoint-schema)
-- [Run Event Contract](./run-event-contract)
-- [Failure Policy Matrix](./failure-policy-matrix)
-- [Security Model](./security-model)
+- [Developer Guide](/library/developer-guide)
+- [Examples](/library/examples/index)
+- [Architecture](/library/architecture)
+- [Public Imports and Function Improvement](/library/public-imports-and-function-improvement)
+- [Full Module Reference (all source modules)](/library/full-module-reference)
+- [Tested Behaviors and Edge Cases](/library/tested-behaviors)
+- [Tool Call Lifecycle](/library/tool-call-lifecycle)
+- [Agent Skills](/library/agent-skills)
+- [Tools Walkthrough](/library/tools-system-walkthrough)
+- [LLM Flow](/library/llm-interaction)
+- [Agentic Orchestration](/library/agentic-behavior)
+- [Checkpoint & Resume](/library/checkpoint-schema)
+- [Run Event Contract](/library/run-event-contract)
+- [Failure Policies](/library/failure-policy-matrix)
+- [Security Model](/library/security-model)
 
 ## Top-Level Package
 
 - `afk` exports: `agents`, `core`, `llms`, `memory`, `tools`, `evals`
-- Source: [afk/__init__.py](../../src/afk/__init__.py)
+- Source: [afk/__init__.py](https://github.com/socioy/afk/blob/main/src/afk/__init__.py)
 
 ---
 
 ## `afk.agents`
 
-Source: [afk/agents/__init__.py](../../src/afk/agents/__init__.py)
+Source: [afk/agents/__init__.py](https://github.com/socioy/afk/blob/main/src/afk/agents/__init__.py)
 
 ### Core Agent Classes
 
@@ -77,8 +78,8 @@ Source: [afk/agents/__init__.py](../../src/afk/agents/__init__.py)
 
 Primary source:
 
-- [afk/agents/base.py](../../src/afk/agents/base.py)
-- [afk/agents/chat.py](../../src/afk/agents/chat.py)
+- [afk/agents/base.py](https://github.com/socioy/afk/blob/main/src/afk/agents/base.py)
+- [afk/agents/chat.py](https://github.com/socioy/afk/blob/main/src/afk/agents/chat.py)
 
 #### `BaseAgent(...)` constructor behavior
 
@@ -120,7 +121,7 @@ Validation/edge cases:
 
 ### Policy API
 
-Source: [afk/agents/policy.py](../../src/afk/agents/policy.py)
+Source: [afk/agents/policy.py](https://github.com/socioy/afk/blob/main/src/afk/agents/policy.py)
 
 - `PolicyRuleCondition`
 - `PolicyRule`
@@ -138,7 +139,7 @@ Behavior:
 
 ### Versioning API
 
-Source: [afk/agents/versioning.py](../../src/afk/agents/versioning.py)
+Source: [afk/agents/versioning.py](https://github.com/socioy/afk/blob/main/src/afk/agents/versioning.py)
 
 Constants:
 
@@ -163,7 +164,7 @@ Behavior:
 
 ### Agent Runtime Types
 
-Source: [afk/agents/types.py](../../src/afk/agents/types.py)
+Source: [afk/agents/types.py](https://github.com/socioy/afk/blob/main/src/afk/agents/types.py)
 
 Exported types:
 
@@ -195,7 +196,7 @@ Important semantics:
 
 ### Error Taxonomy
 
-Source: [afk/agents/errors.py](../../src/afk/agents/errors.py)
+Source: [afk/agents/errors.py](https://github.com/socioy/afk/blob/main/src/afk/agents/errors.py)
 
 Exported errors:
 
@@ -220,18 +221,18 @@ Exported errors:
 
 ## `afk.core`
 
-Source: [afk/core/__init__.py](../../src/afk/core/__init__.py)
+Source: [afk/core/__init__.py](https://github.com/socioy/afk/blob/main/src/afk/core/__init__.py)
 
 ### Runner API
 
 Source:
 
-- [afk/core/runner.py](../../src/afk/core/runner.py)
-- [afk/core/runner_api.py](../../src/afk/core/runner_api.py)
-- [afk/core/runner_execution.py](../../src/afk/core/runner_execution.py)
-- [afk/core/runner_interaction.py](../../src/afk/core/runner_interaction.py)
-- [afk/core/runner_internals.py](../../src/afk/core/runner_internals.py)
-- [afk/core/runner_types.py](../../src/afk/core/runner_types.py)
+- [afk/core/runner.py](https://github.com/socioy/afk/blob/main/src/afk/core/runner.py)
+- [afk/core/runner_api.py](https://github.com/socioy/afk/blob/main/src/afk/core/runner_api.py)
+- [afk/core/runner_execution.py](https://github.com/socioy/afk/blob/main/src/afk/core/runner_execution.py)
+- [afk/core/runner_interaction.py](https://github.com/socioy/afk/blob/main/src/afk/core/runner_interaction.py)
+- [afk/core/runner_internals.py](https://github.com/socioy/afk/blob/main/src/afk/core/runner_internals.py)
+- [afk/core/runner_types.py](https://github.com/socioy/afk/blob/main/src/afk/core/runner_types.py)
 
 Exported:
 
@@ -284,7 +285,7 @@ Failure policy normalization:
 
 ### Interaction Providers
 
-Source: [afk/core/interaction.py](../../src/afk/core/interaction.py)
+Source: [afk/core/interaction.py](https://github.com/socioy/afk/blob/main/src/afk/core/interaction.py)
 
 Exported:
 
@@ -300,7 +301,7 @@ Behavior:
 
 ### Telemetry
 
-Source: [afk/core/telemetry.py](../../src/afk/core/telemetry.py)
+Source: [afk/core/telemetry.py](https://github.com/socioy/afk/blob/main/src/afk/core/telemetry.py)
 
 Exported:
 
@@ -320,7 +321,7 @@ Behavior:
 
 ## `afk.llms`
 
-Source: [afk/llms/__init__.py](../../src/afk/llms/__init__.py)
+Source: [afk/llms/__init__.py](https://github.com/socioy/afk/blob/main/src/afk/llms/__init__.py)
 
 ### Core Interfaces
 
@@ -330,9 +331,9 @@ Source: [afk/llms/__init__.py](../../src/afk/llms/__init__.py)
 
 Source:
 
-- [afk/llms/llm.py](../../src/afk/llms/llm.py)
-- [afk/llms/config.py](../../src/afk/llms/config.py)
-- [afk/llms/middleware.py](../../src/afk/llms/middleware.py)
+- [afk/llms/llm.py](https://github.com/socioy/afk/blob/main/src/afk/llms/llm.py)
+- [afk/llms/config.py](https://github.com/socioy/afk/blob/main/src/afk/llms/config.py)
+- [afk/llms/middleware.py](https://github.com/socioy/afk/blob/main/src/afk/llms/middleware.py)
 
 #### `LLM` public methods
 
@@ -377,7 +378,7 @@ Reads:
 
 ### Factory API
 
-Source: [afk/llms/factory.py](../../src/afk/llms/factory.py)
+Source: [afk/llms/factory.py](https://github.com/socioy/afk/blob/main/src/afk/llms/factory.py)
 
 - `create_llm(adapter, ...)`
 - `create_llm_from_env(...)`
@@ -401,10 +402,10 @@ Exported:
 
 Source:
 
-- [afk/llms/clients/adapters/openai.py](../../src/afk/llms/clients/adapters/openai.py)
-- [afk/llms/clients/adapters/litellm.py](../../src/afk/llms/clients/adapters/litellm.py)
-- [afk/llms/clients/adapters/anthropic_agent.py](../../src/afk/llms/clients/adapters/anthropic_agent.py)
-- [afk/llms/clients/base/responses.py](../../src/afk/llms/clients/base/responses.py)
+- [afk/llms/clients/adapters/openai.py](https://github.com/socioy/afk/blob/main/src/afk/llms/clients/adapters/openai.py)
+- [afk/llms/clients/adapters/litellm.py](https://github.com/socioy/afk/blob/main/src/afk/llms/clients/adapters/litellm.py)
+- [afk/llms/clients/adapters/anthropic_agent.py](https://github.com/socioy/afk/blob/main/src/afk/llms/clients/adapters/anthropic_agent.py)
+- [afk/llms/clients/base/responses.py](https://github.com/socioy/afk/blob/main/src/afk/llms/clients/base/responses.py)
 
 Adapter-specific notes:
 
@@ -417,7 +418,7 @@ Adapter-specific notes:
 
 ### LLM Types
 
-Source: [afk/llms/types.py](../../src/afk/llms/types.py)
+Source: [afk/llms/types.py](https://github.com/socioy/afk/blob/main/src/afk/llms/types.py)
 
 Exported dataclasses/types include:
 
@@ -446,8 +447,8 @@ Exported dataclasses/types include:
 
 Source:
 
-- [afk/llms/observability.py](../../src/afk/llms/observability.py)
-- [afk/llms/errors.py](../../src/afk/llms/errors.py)
+- [afk/llms/observability.py](https://github.com/socioy/afk/blob/main/src/afk/llms/observability.py)
+- [afk/llms/errors.py](https://github.com/socioy/afk/blob/main/src/afk/llms/errors.py)
 
 Exported observer types:
 
@@ -471,7 +472,7 @@ Exported errors:
 
 ## `afk.memory`
 
-Source: [afk/memory/__init__.py](../../src/afk/memory/__init__.py)
+Source: [afk/memory/__init__.py](https://github.com/socioy/afk/blob/main/src/afk/memory/__init__.py)
 
 Exported:
 
@@ -493,14 +494,14 @@ Exported:
 
 Sources:
 
-- [afk/memory/models.py](../../src/afk/memory/models.py)
-- [afk/memory/store/base.py](../../src/afk/memory/store/base.py)
-- [afk/memory/store/in_memory.py](../../src/afk/memory/store/in_memory.py)
-- [afk/memory/store/sqlite.py](../../src/afk/memory/store/sqlite.py)
-- [afk/memory/store/redis.py](../../src/afk/memory/store/redis.py)
-- [afk/memory/store/postgres.py](../../src/afk/memory/store/postgres.py)
-- [afk/memory/factory.py](../../src/afk/memory/factory.py)
-- [afk/memory/lifecycle.py](../../src/afk/memory/lifecycle.py)
+- [afk/memory/models.py](https://github.com/socioy/afk/blob/main/src/afk/memory/models.py)
+- [afk/memory/store/base.py](https://github.com/socioy/afk/blob/main/src/afk/memory/store/base.py)
+- [afk/memory/store/in_memory.py](https://github.com/socioy/afk/blob/main/src/afk/memory/store/in_memory.py)
+- [afk/memory/store/sqlite.py](https://github.com/socioy/afk/blob/main/src/afk/memory/store/sqlite.py)
+- [afk/memory/store/redis.py](https://github.com/socioy/afk/blob/main/src/afk/memory/store/redis.py)
+- [afk/memory/store/postgres.py](https://github.com/socioy/afk/blob/main/src/afk/memory/store/postgres.py)
+- [afk/memory/factory.py](https://github.com/socioy/afk/blob/main/src/afk/memory/factory.py)
+- [afk/memory/lifecycle.py](https://github.com/socioy/afk/blob/main/src/afk/memory/lifecycle.py)
 
 ### Memory backend selection (`create_memory_store_from_env`)
 
@@ -527,11 +528,11 @@ Important edge cases:
 
 ## `afk.tools`
 
-Source: [afk/tools/__init__.py](../../src/afk/tools/__init__.py)
+Source: [afk/tools/__init__.py](https://github.com/socioy/afk/blob/main/src/afk/tools/__init__.py)
 
 ### Core Tool Types
 
-Source: [afk/tools/core/base.py](../../src/afk/tools/core/base.py)
+Source: [afk/tools/core/base.py](https://github.com/socioy/afk/blob/main/src/afk/tools/core/base.py)
 
 Exported:
 
@@ -560,7 +561,7 @@ Signature support:
 
 ### Decorators
 
-Source: [afk/tools/core/decorator.py](../../src/afk/tools/core/decorator.py)
+Source: [afk/tools/core/decorator.py](https://github.com/socioy/afk/blob/main/src/afk/tools/core/decorator.py)
 
 Exported:
 
@@ -572,7 +573,7 @@ Exported:
 
 ### Registry
 
-Source: [afk/tools/registery.py](../../src/afk/tools/registery.py)
+Source: [afk/tools/registery.py](https://github.com/socioy/afk/blob/main/src/afk/tools/registery.py)
 
 Exported:
 
@@ -591,7 +592,7 @@ Important behavior:
 
 ### Security/Sandbox
 
-Source: [afk/tools/security.py](../../src/afk/tools/security.py)
+Source: [afk/tools/security.py](https://github.com/socioy/afk/blob/main/src/afk/tools/security.py)
 
 Exported:
 
@@ -615,8 +616,8 @@ Checks include:
 
 Source:
 
-- [afk/tools/prebuilts/runtime.py](../../src/afk/tools/prebuilts/runtime.py)
-- [afk/tools/prebuilts/skills.py](../../src/afk/tools/prebuilts/skills.py)
+- [afk/tools/prebuilts/runtime.py](https://github.com/socioy/afk/blob/main/src/afk/tools/prebuilts/runtime.py)
+- [afk/tools/prebuilts/skills.py](https://github.com/socioy/afk/blob/main/src/afk/tools/prebuilts/skills.py)
 
 Exported:
 
@@ -637,7 +638,7 @@ Built-in skill tools:
 
 ### Tool Export Helpers
 
-Source: [afk/tools/core/export.py](../../src/afk/tools/core/export.py)
+Source: [afk/tools/core/export.py](https://github.com/socioy/afk/blob/main/src/afk/tools/core/export.py)
 
 Exported:
 
@@ -650,7 +651,7 @@ Exported:
 
 ### Tool Errors
 
-Source: [afk/tools/core/errors.py](../../src/afk/tools/core/errors.py)
+Source: [afk/tools/core/errors.py](https://github.com/socioy/afk/blob/main/src/afk/tools/core/errors.py)
 
 Exported:
 
@@ -665,7 +666,7 @@ Exported:
 
 ## `afk.evals`
 
-Source: [afk/evals/__init__.py](../../src/afk/evals/__init__.py)
+Source: [afk/evals/__init__.py](https://github.com/socioy/afk/blob/main/src/afk/evals/__init__.py)
 
 Exported:
 
@@ -676,7 +677,7 @@ Exported:
 - `compare_event_types(...)`
 - `write_golden_trace(...)`
 
-Source: [afk/evals/harness.py](../../src/afk/evals/harness.py)
+Source: [afk/evals/harness.py](https://github.com/socioy/afk/blob/main/src/afk/evals/harness.py)
 
 Behavior notes:
 
@@ -728,12 +729,12 @@ Behavior notes:
 
 All code samples are Python files and can be linked directly from website/MDX build systems:
 
-- [01_minimal_chat_agent.py](./examples/01_minimal_chat_agent.py)
-- [02_policy_with_hitl.py](./examples/02_policy_with_hitl.py)
-- [03_subagents_with_router.py](./examples/03_subagents_with_router.py)
-- [04_resume_and_compact.py](./examples/04_resume_and_compact.py)
-- [05_direct_llm_structured_output.py](./examples/05_direct_llm_structured_output.py)
-- [06_tool_registry_security.py](./examples/06_tool_registry_security.py)
+- [01_minimal_chat_agent.py](/library/examples/index#01-minimal-chat-agent)
+- [02_policy_with_hitl.py](/library/examples/index#02-policy-with-hitl)
+- [03_subagents_with_router.py](/library/examples/index#03-subagents-with-router)
+- [04_resume_and_compact.py](/library/examples/index#04-resume-and-compact)
+- [05_direct_llm_structured_output.py](/library/examples/index#05-direct-llm-structured-output)
+- [06_tool_registry_security.py](/library/examples/index#06-tool-registry-security)
 
 ---
 

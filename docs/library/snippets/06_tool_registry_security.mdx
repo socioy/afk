@@ -1,8 +1,9 @@
+````python 06_tool_registry_security.py
 """
 Example 06: Tool registry security with sandbox policy.
 
 Run:
-    uv run python docs/library/examples/06_tool_registry_security.py
+    python 06_tool_registry_security.py
 """
 
 from __future__ import annotations
@@ -28,7 +29,11 @@ class ReadArgs(BaseModel):
     max_chars: int = Field(default=2000, ge=1, le=20_000)
 
 
-@tool(args_model=ReadArgs, name="safe_read_file")
+@tool(
+    args_model=ReadArgs,
+    name="safe_read_file",
+    description="Read a UTF-8 text file from an allowlisted path with max size bounds.",
+)
 def safe_read_file(args: ReadArgs, ctx: ToolContext) -> dict[str, str | bool]:
     _ = ctx
     target = Path(args.path).resolve()
@@ -41,11 +46,16 @@ def safe_read_file(args: ReadArgs, ctx: ToolContext) -> dict[str, str | bool]:
 
 async def main() -> None:
     cwd = Path.cwd()
+    workspace = (cwd / ".afk_tools_security_demo").resolve()
+    workspace.mkdir(parents=True, exist_ok=True)
+    allowed_file = workspace / "allowed.txt"
+    allowed_file.write_text("sandbox-safe demo content", encoding="utf-8")
+
     profile = SandboxProfile(
-        profile_id="docs-only",
+        profile_id="sdk-demo-sandbox",
         allow_network=False,
         allow_command_execution=False,
-        allowed_paths=[str(cwd / "docs")],
+        allowed_paths=[str(workspace)],
         max_output_chars=4000,
     )
 
@@ -57,16 +67,17 @@ async def main() -> None:
 
     allowed = await registry.call(
         "safe_read_file",
-        {"path": str(cwd / "docs" / "library" / "index.md")},
+        {"path": str(allowed_file)},
     )
     print("profile_id:", profile.profile_id)
     print("allowed_success:", allowed.success)
 
     try:
-        await registry.call("safe_read_file", {"path": str(cwd / "README.md")})
+        await registry.call("safe_read_file", {"path": str(cwd / "outside-sandbox.txt")})
     except ToolPolicyError as exc:
         print("blocked_by_policy:", str(exc))
 
 
 if __name__ == "__main__":
     asyncio.run(main())
+````

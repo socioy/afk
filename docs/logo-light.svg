@@ -1,0 +1,9 @@
+<svg width="300" height="64" viewBox="0 0 300 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="300" height="64" rx="12" fill="#F8FAFC"/>
+  <rect x="10" y="10" width="44" height="44" rx="10" fill="#0B6E4F"/>
+  <path d="M21 40V24H31.4L29.8 27.4H24.8V30.2H29.2L27.7 33.4H24.8V40H21Z" fill="white"/>
+  <path d="M33 40L37.7 24H41.9L46.6 40H42.8L41.9 36.8H37.6L36.7 40H33ZM38.4 33.6H41.1L39.8 28.6L38.4 33.6Z" fill="white"/>
+  <path d="M48.7 40V24H52.5V30.2L56.9 24H61.2L56.1 31L61.5 40H57L53.4 33.8L52.5 35V40H48.7Z" fill="white"/>
+  <text x="68" y="34" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="700" fill="#0F172A">AFK</text>
+  <text x="68" y="50" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#334155">Agent Forge Kit</text>
+</svg>

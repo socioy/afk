@@ -1,5 +1,5 @@
 ---
-title: Failure Policy Matrix
+title: Failure Policies
 description: Failure handling matrix across llm, tools, subagents, approvals, and runtime budgets.
 ---
 
@@ -20,11 +20,11 @@ This document explains how `FailSafeConfig` policy strings are normalized into r
 
 Primary code path:
 
-- [afk/core/runner_internals.py](../../src/afk/core/runner_internals.py)
+- [afk/core/runner_internals.py](https://github.com/socioy/afk/blob/main/src/afk/core/runner_internals.py)
 
 Policy source type:
 
-- [afk/agents/types.py](../../src/afk/agents/types.py) (`FailurePolicy`, `FailSafeConfig`)
+- [afk/agents/types.py](https://github.com/socioy/afk/blob/main/src/afk/agents/types.py) (`FailurePolicy`, `FailSafeConfig`)
 
 ## Failure Policy Values
 
@@ -145,5 +145,5 @@ For controlled degradation:
 
 ## Related Examples
 
-- [examples/02_policy_with_hitl.py](./examples/02_policy_with_hitl.py)
-- [examples/03_subagents_with_router.py](./examples/03_subagents_with_router.py)
+- [examples/02_policy_with_hitl.py](/library/examples/index#02-policy-with-hitl)
+- [examples/03_subagents_with_router.py](/library/examples/index#03-subagents-with-router)

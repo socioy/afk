@@ -1,5 +1,5 @@
 ---
-title: Tool Call Lifecycle
+title: Tool Lifecycle
 description: Complete lifecycle of tool planning, approval, execution, replay, and output insertion.
 ---
 
@@ -20,11 +20,11 @@ This document describes the exact lifecycle AFK uses when an LLM returns tool ca
 
 Primary code paths:
 
-- [afk/core/runner_execution.py](../../src/afk/core/runner_execution.py)
-- [afk/core/runner_interaction.py](../../src/afk/core/runner_interaction.py)
-- [afk/core/runner_internals.py](../../src/afk/core/runner_internals.py)
-- [afk/tools/registery.py](../../src/afk/tools/registery.py)
-- [afk/tools/security.py](../../src/afk/tools/security.py)
+- [afk/core/runner_execution.py](https://github.com/socioy/afk/blob/main/src/afk/core/runner_execution.py)
+- [afk/core/runner_interaction.py](https://github.com/socioy/afk/blob/main/src/afk/core/runner_interaction.py)
+- [afk/core/runner_internals.py](https://github.com/socioy/afk/blob/main/src/afk/core/runner_internals.py)
+- [afk/tools/registery.py](https://github.com/socioy/afk/blob/main/src/afk/tools/registery.py)
+- [afk/tools/security.py](https://github.com/socioy/afk/blob/main/src/afk/tools/security.py)
 
 ## End-to-End Flow
 
@@ -173,5 +173,5 @@ Checkpoint phases touched in this stage:
 
 ## Related Examples
 
-- [examples/02_policy_with_hitl.py](./examples/02_policy_with_hitl.py)
-- [examples/06_tool_registry_security.py](./examples/06_tool_registry_security.py)
+- [examples/02_policy_with_hitl.py](/library/examples/index#02-policy-with-hitl)
+- [examples/06_tool_registry_security.py](/library/examples/index#06-tool-registry-security)

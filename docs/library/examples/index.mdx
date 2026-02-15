@@ -1,18 +1,51 @@
 ---
-title: Examples Runbook
+title: Examples
 description: Runnable AFK examples in build order with architecture diagrams and customization guidance.
 ---
 
-Every example is a runnable Python file under `docs/library/examples/`.
+import Example01Source from "/library/snippets/01_minimal_chat_agent.mdx";
+import Example02Source from "/library/snippets/02_policy_with_hitl.mdx";
+import Example03Source from "/library/snippets/03_subagents_with_router.mdx";
+import Example04Source from "/library/snippets/04_resume_and_compact.mdx";
+import Example05Source from "/library/snippets/05_direct_llm_structured_output.mdx";
+import Example06Source from "/library/snippets/06_tool_registry_security.mdx";
+import Example07Source from "/library/snippets/07_tool_hooks_and_middleware.mdx";
+import Example08Source from "/library/snippets/08_prebuilt_runtime_tools.mdx";
+
+Every example is embedded below as a copy-ready script using the published `afk` SDK (`from afk...` imports).
+
+<Tip>
+Run examples in order. Each one introduces one new concept while preserving the previous mental model.
+</Tip>
+
+## Fast Learning Path
+
+<Steps>
+  <Step title="01: minimal baseline">Run `01_minimal_chat_agent.py` and validate model + tool loop.</Step>
+  <Step title="02: safety gates">Add policy and deferred approvals with `02_policy_with_hitl.py`.</Step>
+  <Step title="03: orchestration">Add subagent routing with `03_subagents_with_router.py`.</Step>
+  <Step title="04: durability">Add checkpoint/resume with `04_resume_and_compact.py`.</Step>
+</Steps>
 
 ## Before You Run
 
-```bash
-uv sync
+<CodeGroup>
+
+```bash uv
+uv pip install afk pydantic
 export AFK_LLM_ADAPTER=openai
 export AFK_LLM_MODEL=gpt-4.1-mini
 export AFK_LLM_API_KEY=your_key_here
 ```
+
+```bash pip
+pip install afk pydantic
+export AFK_LLM_ADAPTER=openai
+export AFK_LLM_MODEL=gpt-4.1-mini
+export AFK_LLM_API_KEY=your_key_here
+```
+
+</CodeGroup>
 
 ## Example Catalog
 
@@ -45,20 +78,37 @@ export AFK_LLM_API_KEY=your_key_here
 
 ## Run Commands
 
+Use the same filenames shown in each accordion code block.
+
+<Tabs>
+  <Tab title="One by one">
+
 ```bash
-uv run python docs/library/examples/01_minimal_chat_agent.py
-uv run python docs/library/examples/02_policy_with_hitl.py
-uv run python docs/library/examples/03_subagents_with_router.py
-uv run python docs/library/examples/04_resume_and_compact.py
-uv run python docs/library/examples/05_direct_llm_structured_output.py
-uv run python docs/library/examples/06_tool_registry_security.py
-uv run python docs/library/examples/07_tool_hooks_and_middleware.py
-uv run python docs/library/examples/08_prebuilt_runtime_tools.py
+python 01_minimal_chat_agent.py
+python 02_policy_with_hitl.py
+python 03_subagents_with_router.py
+python 04_resume_and_compact.py
+python 05_direct_llm_structured_output.py
+python 06_tool_registry_security.py
+python 07_tool_hooks_and_middleware.py
+python 08_prebuilt_runtime_tools.py
 ```
+
+  </Tab>
+  <Tab title="Batch run">
+
+```bash
+for f in 0*.py; do python "$f"; done
+```
+
+  </Tab>
+</Tabs>
 
 ## 01. Minimal Chat Agent
 
-Code: [01_minimal_chat_agent.py](./01_minimal_chat_agent.py)
+<Accordion title="Source code: 01_minimal_chat_agent.py">
+  <Example01Source />
+</Accordion>
 
 - Defines a typed tool (`sum_numbers`) with Pydantic validation.
 - Creates one `Agent` with model, instructions, and tool list.
@@ -86,7 +136,9 @@ sequenceDiagram
 
 ## 02. Policy With HITL
 
-Code: [02_policy_with_hitl.py](./02_policy_with_hitl.py)
+<Accordion title="Source code: 02_policy_with_hitl.py">
+  <Example02Source />
+</Accordion>
 
 - Adds policy rule that gates `risky_action` with `request_approval`.
 - Uses `InMemoryInteractiveProvider` for deferred decisions.
@@ -106,7 +158,9 @@ flowchart TD
 
 ## 03. Subagents With Router
 
-Code: [03_subagents_with_router.py](./03_subagents_with_router.py)
+<Accordion title="Source code: 03_subagents_with_router.py">
+  <Example03Source />
+</Accordion>
 
 - Defines `Writer` and `Reviewer` subagents.
 - Router inspects transcript text and returns subagent names.
@@ -126,7 +180,9 @@ flowchart TD
 
 ## 04. Resume And Compact
 
-Code: [04_resume_and_compact.py](./04_resume_and_compact.py)
+<Accordion title="Source code: 04_resume_and_compact.py">
+  <Example04Source />
+</Accordion>
 
 - Runs once with `Runner.run(...)`.
 - Resumes with same `run_id` and `thread_id`.
@@ -145,7 +201,9 @@ flowchart TD
 
 ## 05. Direct LLM Structured Output
 
-Code: [05_direct_llm_structured_output.py](./05_direct_llm_structured_output.py)
+<Accordion title="Source code: 05_direct_llm_structured_output.py">
+  <Example05Source />
+</Accordion>
 
 - Uses `afk.llms.create_llm(...)` directly.
 - Builds `LLMRequest` manually.
@@ -163,7 +221,9 @@ flowchart TD
 
 ## 06. Tool Registry Security
 
-Code: [06_tool_registry_security.py](./06_tool_registry_security.py)
+<Accordion title="Source code: 06_tool_registry_security.py">
+  <Example06Source />
+</Accordion>
 
 - Builds a sandbox profile with allowlists and execution restrictions.
 - Registers tools in `ToolRegistry` with output-limiting middleware.
@@ -179,7 +239,9 @@ flowchart TD
 
 ## 07. Tool Hooks And Middleware
 
-Code: [07_tool_hooks_and_middleware.py](./07_tool_hooks_and_middleware.py)
+<Accordion title="Source code: 07_tool_hooks_and_middleware.py">
+  <Example07Source />
+</Accordion>
 
 - Uses prehook to normalize arguments.
 - Uses middleware to wrap tool behavior.
@@ -206,7 +268,9 @@ sequenceDiagram
 
 ## 08. Prebuilt Runtime Tools
 
-Code: [08_prebuilt_runtime_tools.py](./08_prebuilt_runtime_tools.py)
+<Accordion title="Source code: 08_prebuilt_runtime_tools.py">
+  <Example08Source />
+</Accordion>
 
 - Builds prebuilt filesystem tools with `build_runtime_tools(root_dir)`.
 - Registers them in a `ToolRegistry`.
@@ -227,4 +291,4 @@ flowchart TD
 
 - [Tool Call Lifecycle](/library/tool-call-lifecycle)
 - [Security Model](/library/security-model)
-- [Checkpoint and Resume Schema](/library/checkpoint-schema)
+- [Checkpoint & Resume](/library/checkpoint-schema)

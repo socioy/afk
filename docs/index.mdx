@@ -1,33 +1,76 @@
 ---
-title: AFK Python
-description: Build production-ready AI agents with policy, tools, memory, and provider-agnostic LLM orchestration.
+title: AFK
+description: Build production-ready agent systems with policy, tools, memory, and provider-agnostic LLM orchestration.
 ---
 
-AFK is a Python agent runtime focused on safe orchestration, deterministic behavior, and practical developer experience.
+AFK (Agent Forge Kit) is an agent runtime focused on safe orchestration, deterministic behavior, and practical developer experience.
+
+<Tip>
+Language support roadmap: this docs site uses the current Python SDK examples today, with TypeScript, Go, and Rust SDK docs planned next.
+</Tip>
 
 <CardGroup cols={2}>
-  <Card title="Library Documentation" href="/library/index" icon="book-open">
-    Architecture, onboarding, API reference, tool lifecycle, security, and edge cases.
+  <Card title="Start in 15 Minutes" href="/library/developer-guide" icon="rocket">
+    Go from zero to first working AFK agent with a copy-paste path.
   </Card>
-  <Card title="LLM Layer" href="/llms/index" icon="cpu">
-    Adapter contracts, capability matrix, streaming controls, and integration boundaries.
+  <Card title="Run Examples" href="/library/examples/index" icon="play-circle">
+    Learn by running progressively harder examples with diagrams.
+  </Card>
+  <Card title="Understand the Runtime" href="/library/architecture" icon="git-branch">
+    Build a clear mental model of execution, tools, memory, and policy.
+  </Card>
+  <Card title="LLM Integration" href="/llms/index" icon="cpu">
+    Use adapter contracts, streaming/session controls, and integration boundaries.
   </Card>
 </CardGroup>
 
-## Quick Start
+## Fast Path
+
+<Steps>
+  <Step title="Install dependencies">
+    <CodeGroup>
+
+```bash uv
+uv pip install afk pydantic
+```
+
+```bash pip
+pip install afk pydantic
+```
+
+    </CodeGroup>
+  </Step>
+
+  <Step title="Set environment">
 
 ```bash
-uv sync
 export AFK_LLM_ADAPTER=openai
 export AFK_LLM_MODEL=gpt-4.1-mini
 export AFK_LLM_API_KEY=your_key_here
-uv run python docs/library/examples/01_minimal_chat_agent.py
 ```
 
-## What You Can Build
+  </Step>
+
+  <Step title="Validate SDK setup">
+
+```bash
+python -c "import afk; print('AFK SDK ready')"
+```
+
+  </Step>
+</Steps>
+
+## What You Can Build with AFK
 
 - Chat and task-oriented agents with typed tools
 - Policy-gated tool execution with human approval flows
 - Subagent orchestration and routing
 - Resume-safe long-running workflows with checkpoints
 - Provider-agnostic LLM integrations
+
+## Learn Sequence
+
+1. [Developer Guide](/library/developer-guide)
+2. [Examples](/library/examples/index)
+3. [Architecture](/library/architecture)
+4. [API Reference](/library/api-reference)

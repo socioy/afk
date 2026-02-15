@@ -1,8 +1,9 @@
+````python 02_policy_with_hitl.py
 """
 Example 02: Policy with deferred human approval.
 
 Run:
-    uv run python docs/library/examples/02_policy_with_hitl.py
+    python 02_policy_with_hitl.py
 """
 
 from __future__ import annotations
@@ -27,7 +28,11 @@ class RiskyArgs(BaseModel):
     reason: str = Field(min_length=1)
 
 
-@tool(args_model=RiskyArgs, name="risky_action")
+@tool(
+    args_model=RiskyArgs,
+    name="risky_action",
+    description="Execute a side-effecting action that requires explicit approval.",
+)
 def risky_action(args: RiskyArgs) -> dict[str, str]:
     return {
         "status": "executed",
@@ -96,3 +101,4 @@ async def main() -> None:
 
 if __name__ == "__main__":
     asyncio.run(main())
+````

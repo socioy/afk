@@ -1,9 +1,13 @@
 ---
-title: LLM Layer Overview
+title: LLM Overview
 description: Provider-agnostic contracts, adapter capabilities, stream/session controls, and agent integration boundaries in afk.llms.
 ---
 
 `afk.llms` is the transport and normalization layer for all model providers used by AFK.
+
+<Info>
+Use `afk.llms` when you need direct model control. Use `afk.agents` when you need orchestration and tool execution.
+</Info>
 
 ## What This Layer Owns
 
@@ -32,6 +36,9 @@ description: Provider-agnostic contracts, adapter capabilities, stream/session c
 
 ## Minimal Usage
 
+<Tabs>
+  <Tab title="OpenAI">
+
 ```python
 from afk.llms import LLMRequest, Message, create_llm
 
@@ -43,6 +50,24 @@ req = LLMRequest(
 resp = await llm.chat(req)
 print(resp.text)
 ```
+
+  </Tab>
+  <Tab title="LiteLLM">
+
+```python
+from afk.llms import LLMRequest, Message, create_llm
+
+llm = create_llm("litellm")
+req = LLMRequest(
+    model="ollama_chat/gpt-oss:20b",
+    messages=[Message(role="user", content="Plan the next 3 steps")],
+)
+resp = await llm.chat(req)
+print(resp.text)
+```
+
+  </Tab>
+</Tabs>
 
 ## Integration Rule
 

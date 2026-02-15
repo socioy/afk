@@ -1,8 +1,9 @@
+````python 07_tool_hooks_and_middleware.py
 """
 Example 07: Tool hooks and tool-level middleware.
 
 Run:
-    uv run python docs/library/examples/07_tool_hooks_and_middleware.py
+    python 07_tool_hooks_and_middleware.py
 """
 
 from __future__ import annotations
@@ -24,12 +25,19 @@ class PostArgs(BaseModel):
     tool_name: str | None = None
 
 
-@prehook(args_model=EchoArgs, name="trim_input")
+@prehook(
+    args_model=EchoArgs,
+    name="trim_input",
+    description="Normalize input text by removing leading and trailing whitespace.",
+)
 def trim_input(args: EchoArgs) -> dict[str, str]:
     return {"text": args.text.strip()}
 
 
-@middleware(name="append_suffix")
+@middleware(
+    name="append_suffix",
+    description="Append punctuation to string outputs after tool execution.",
+)
 async def append_suffix(call_next, args: EchoArgs, ctx: ToolContext):
     _ = ctx
     out = await call_next(args, ctx)
@@ -38,7 +46,11 @@ async def append_suffix(call_next, args: EchoArgs, ctx: ToolContext):
     return out
 
 
-@posthook(args_model=PostArgs, name="wrap_output")
+@posthook(
+    args_model=PostArgs,
+    name="wrap_output",
+    description="Wrap raw output in a structured object with tool metadata.",
+)
 def wrap_output(args: PostArgs) -> dict[str, Any]:
     return {
         "tool": args.tool_name,
@@ -49,6 +61,7 @@ def wrap_output(args: PostArgs) -> dict[str, Any]:
 @tool(
     args_model=EchoArgs,
     name="echo_clean",
+    description="Return uppercased echo text after pre/post processing.",
     prehooks=[trim_input],
     middlewares=[append_suffix],
     posthooks=[wrap_output],
@@ -66,3 +79,4 @@ async def main() -> None:
 
 if __name__ == "__main__":
     asyncio.run(main())
+````
