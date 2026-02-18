@@ -12,6 +12,23 @@ AFK (**Agent Forge Kit**) is a Python SDK for building AI agents that are predic
   provider.
 </Tip>
 
+## Why AFK?
+
+AFK is designed for engineering teams that need agent systems to be reliable in
+production, not just functional in a demo.
+
+| If you need...                            | AFK gives you...                                                                      |
+| ----------------------------------------- | -------------------------------------------------------------------------------------- |
+| Predictable multi-step behavior           | Deterministic runner loop with typed contracts and explicit lifecycle events           |
+| Safe tool execution                       | Pydantic validation, policy gates, approval flows, sandbox profile integration         |
+| Production controls                       | Cost/step/time limits, retry and circuit breaker policies, bounded tool outputs        |
+| Portability across LLM providers          | Normalized request/response contracts with pluggable provider adapters                 |
+| CI confidence for prompt and tool changes | Built-in eval suites, golden traces, structured metrics, and telemetry export backends |
+
+Use AFK when your agent will touch real systems and needs guardrails, debuggability,
+and repeatability. If you only need a simple single-turn chat, a direct provider SDK
+may be lighter.
+
 ## The core idea
 
 Every AFK application is built from three pieces:
@@ -170,8 +187,6 @@ flowchart LR
 
 | Scenario                                  | AFK is a good fit                                                                                    | Consider alternatives                                                                     |
 | ----------------------------------------- | ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| Scenario                                  | AFK is a good fit                                                                                    | Consider alternatives                                                                     |
-| ----------------------------------------- | ------------------------------------------------                                                     | -------------------------------------                                                     |
 | Building a production AI agent with tools | <Icon icon="check" iconType="solid" color="#22c55e" /> Typed contracts, policy gates, observability  | —                                                                                         |
 | Prototyping a quick LLM chat              | <Icon icon="check" iconType="solid" color="#22c55e" /> `Agent` + `Runner` in 5 lines                 | Raw API calls may be simpler                                                              |
 | Multi-agent orchestration                 | <Icon icon="check" iconType="solid" color="#22c55e" /> DAG delegation, join policies, backpressure   | —                                                                                         |

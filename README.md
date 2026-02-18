@@ -31,6 +31,17 @@ flowchart LR
 - **Deep Tooling**: Secure tool execution with policy hooks and sandbox profiles.
 - **Scalable Memory**: Pluggable backends (SQLite, Redis, Postgres) with auto-compaction.
 
+## Why AFK
+
+AFK is for teams moving from demos to production agents.
+
+- Use AFK when you need **predictable runs**, **typed tool contracts**, and **policy-gated actions**.
+- Use AFK when reliability matters: retries, limits, circuit breakers, observability, and evals are built in.
+- Use AFK when you want provider flexibility without rewriting agent logic for each model vendor.
+
+Choose AFK over raw SDK calls when your workflow includes tools, multi-step execution, approvals, or release gating.
+Choose a raw SDK when you only need simple chat/completions and minimal runtime behavior.
+
 ## Installation
 
 ```bash
