@@ -1,0 +1,82 @@
+---
+title: Debugger
+description: Debug-mode runner setup with redacted event payloads and live event taps.
+---
+
+Use `afk.debugger.Debugger` to run agents in a structured debug mode without changing your core runtime architecture.
+
+## Quick start
+
+```python
+from afk.debugger import Debugger, DebuggerConfig
+
+debugger = Debugger(
+    DebuggerConfig(
+        verbosity="detailed",
+        redact_secrets=True,
+        include_content=True,
+    )
+)
+
+runner = debugger.runner()
+```
+
+You can also enable debug mode directly on the runner:
+
+```python
+from afk.core import Runner, RunnerConfig
+
+runner = Runner(config=RunnerConfig(debug=True))
+```
+
+## Attach to a run handle
+
+```python
+handle = await runner.run_handle(agent, user_message="inspect this run")
+await debugger.attach(handle)  # prints formatted events
+```
+
+## Redaction behavior
+
+When `redact_secrets=True`, payload keys containing any of these markers are masked:
+
+- `api_key`
+- `token`
+- `secret`
+- `authorization`
+- `password`
+
+## Verbosity modes
+
+- `basic`: lightweight metadata and step markers.
+- `detailed`: includes payload previews and step metadata.
+- `trace`: highest detail for deep diagnostics.
+
+## Background tool scenario (coding + build + docs)
+
+```python
+from afk.tools import tool, ToolResult, ToolDeferredHandle
+
+@tool(args_model=BuildArgs, name="build_project")
+async def build_project(args: BuildArgs) -> ToolResult[dict[str, str]]:
+    future = asyncio.create_task(run_long_build(args.path))
+    return ToolResult(
+        success=True,
+        deferred=ToolDeferredHandle(
+            ticket_id="build-123",
+            tool_name="build_project",
+            status="running",
+            summary="Build started",
+            resume_hint="Continue documentation while build runs",
+        ),
+        metadata={"background_task": future},
+    )
+```
+
+Flow:
+
+1. Agent writes code.
+2. Agent calls `build_project` and receives `tool_deferred`.
+3. Agent continues with `write_docs` or other tasks.
+4. Runner emits `tool_background_resolved` when build completes.
+5. Agent uses resolved build output in a later step to finalize/fix.

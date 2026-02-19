@@ -31,6 +31,30 @@ _RUN_END = object()
 
 
 @dataclass(frozen=True, slots=True)
+class RunnerDebugConfig:
+    """
+    Debug instrumentation settings for run/event enrichment.
+
+    Attributes:
+        enabled: Enable debug metadata enrichment and formatting hooks.
+        verbosity: Detail level (`basic`, `detailed`, `trace`).
+        include_content: Include event/tool/message content in debug payloads.
+        redact_secrets: Redact sensitive keys from debug payload content.
+        max_payload_chars: Truncate debug payload fields to this length.
+        emit_timestamps: Attach timestamp metadata to debug payloads.
+        emit_step_snapshots: Emit summarized per-step snapshot metadata.
+    """
+
+    enabled: bool = True
+    verbosity: str = "detailed"
+    include_content: bool = True
+    redact_secrets: bool = True
+    max_payload_chars: int = 4000
+    emit_timestamps: bool = True
+    emit_step_snapshots: bool = True
+
+
+@dataclass(frozen=True, slots=True)
 class RunnerConfig:
     """
     Runtime configuration for runner behavior and safety defaults.
@@ -62,6 +86,14 @@ class RunnerConfig:
         checkpoint_queue_maxsize: Maximum queued checkpoint writes.
         checkpoint_flush_timeout_s: Timeout for terminal checkpoint flush.
         checkpoint_coalesce_runtime_state: Coalesce runtime-state writes by key.
+        debug: Enable debug instrumentation for run events.
+        debug_config: Optional advanced debug instrumentation settings.
+        background_tools_enabled: Allow tools to be deferred into background.
+        background_tool_default_grace_s: Grace window before backgrounding.
+        background_tool_max_pending: Maximum unresolved background tools per run.
+        background_tool_poll_interval_s: Poll interval for persisted tool state.
+        background_tool_result_ttl_s: TTL for pending background tool tickets.
+        background_tool_interrupt_on_resolve: Hint loop wake-up on resolution.
     """
 
     interaction_mode: InteractionMode = "headless"
@@ -93,6 +125,14 @@ class RunnerConfig:
     checkpoint_queue_maxsize: int = 1024
     checkpoint_flush_timeout_s: float = 10.0
     checkpoint_coalesce_runtime_state: bool = True
+    debug: bool = False
+    debug_config: "RunnerDebugConfig | None" = None
+    background_tools_enabled: bool = True
+    background_tool_default_grace_s: float = 0.0
+    background_tool_max_pending: int = 256
+    background_tool_poll_interval_s: float = 0.5
+    background_tool_result_ttl_s: float = 3600.0
+    background_tool_interrupt_on_resolve: bool = True
 
 
 class _RunHandle(AgentRunHandle):

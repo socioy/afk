@@ -237,6 +237,10 @@ class RunnerExecutionMixin:
             final_resp = self._deserialize_llm_response(restored.get("final_response"))
             if pending_llm_response is not None:
                 reuse_current_step = True
+            await self._restore_background_pending(
+                run_id=run_id,
+                value=restored.get("background_tools_pending"),
+            )
 
         fail_safe: FailSafeConfig = agent.fail_safe
         breaker = CircuitBreaker(fail_safe)
@@ -390,6 +394,69 @@ class RunnerExecutionMixin:
                     raise AgentLoopLimitError(
                         f"Exceeded max_steps={fail_safe.max_steps} for run {run_id}"
                     )
+                if self.config.background_tools_enabled:
+                    await self._poll_background_pending()
+                background_rows = await self._drain_background_resolutions(run_id=run_id)
+                for row in background_rows:
+                    payload = {
+                        "success": row.success,
+                        "output": row.output,
+                        "error": row.error,
+                        "ticket_id": row.ticket_id,
+                        "tool_call_id": row.tool_call_id,
+                    }
+                    messages.append(
+                        Message(
+                            role="tool",
+                            name=row.tool_name,
+                            content=render_untrusted_tool_message(
+                                tool_name=row.tool_name,
+                                payload=payload,
+                                max_chars=self.config.tool_output_max_chars,
+                            )
+                            if self.config.sanitize_tool_output
+                            else json.dumps(payload, ensure_ascii=True),
+                        )
+                    )
+                    tool_execs.append(
+                        ToolExecutionRecord(
+                            tool_name=row.tool_name,
+                            tool_call_id=row.tool_call_id,
+                            success=row.success,
+                            output=row.output,
+                            error=row.error,
+                            agent_name=row.agent_name,
+                            agent_depth=row.agent_depth,
+                            agent_path=row.agent_path,
+                        )
+                    )
+                    await self._emit(
+                        handle,
+                        memory,
+                        AgentRunEvent(
+                            type=(
+                                "tool_background_resolved"
+                                if row.success
+                                else "tool_background_failed"
+                            ),
+                            run_id=run_id,
+                            thread_id=t_id,
+                            state=state,
+                            step=step,
+                            data={
+                                "tool_name": row.tool_name,
+                                "tool_call_id": row.tool_call_id,
+                                "ticket_id": row.ticket_id,
+                                "success": row.success,
+                                "output": row.output,
+                                "error": row.error,
+                                "agent_name": row.agent_name,
+                                "agent_depth": row.agent_depth,
+                                "agent_path": row.agent_path,
+                            },
+                        ),
+                        user_id=self._maybe_str(ctx.get("user_id")),
+                    )
 
                 await self._emit(
                     handle,
@@ -438,6 +505,7 @@ class RunnerExecutionMixin:
                     pending_llm_response=pending_llm_response,
                     final_response=final_resp,
                     replayed_effect_count=replayed_effect_count,
+                    background_tools_pending=await self._snapshot_background_pending(run_id=run_id),
                 )
 
                 if agent.subagent_router and agent.subagents:
@@ -682,6 +750,28 @@ class RunnerExecutionMixin:
                                     content=llm_input_decision.value,
                                 )
                             )
+                    reasoning_cfg = {}
+                    raw_afk = ctx.get("_afk")
+                    if isinstance(raw_afk, dict):
+                        maybe_reasoning = raw_afk.get("reasoning")
+                        if isinstance(maybe_reasoning, dict):
+                            reasoning_cfg = maybe_reasoning
+                    effective_thinking = (
+                        reasoning_cfg.get("enabled")
+                        if isinstance(reasoning_cfg.get("enabled"), bool)
+                        else agent.reasoning_enabled
+                    )
+                    effective_effort = (
+                        reasoning_cfg.get("effort")
+                        if isinstance(reasoning_cfg.get("effort"), str)
+                        else agent.reasoning_effort
+                    )
+                    effective_max_thinking_tokens = (
+                        reasoning_cfg.get("max_tokens")
+                        if isinstance(reasoning_cfg.get("max_tokens"), int)
+                        else agent.reasoning_max_tokens
+                    )
+
                     req = LLMRequest(
                         model=model_name,
                         request_id=request_id,
@@ -701,6 +791,9 @@ class RunnerExecutionMixin:
                             },
                             "tool_output_sanitized": self.config.sanitize_tool_output,
                         },
+                        thinking=effective_thinking,
+                        thinking_effort=effective_effort,
+                        max_thinking_tokens=effective_max_thinking_tokens,
                     )
                     await self._emit(
                         handle,
@@ -936,6 +1029,7 @@ class RunnerExecutionMixin:
                         pending_llm_response=pending_llm_response,
                         final_response=final_resp,
                         replayed_effect_count=replayed_effect_count,
+                    background_tools_pending=await self._snapshot_background_pending(run_id=run_id),
                     )
                 else:
                     resp = pending_llm_response
@@ -1422,6 +1516,92 @@ class RunnerExecutionMixin:
                             profile=call_profile,
                         )
 
+                        if tr.deferred is not None and self.config.background_tools_enabled:
+                            registered = await self._register_background_tool(
+                                run_id=run_id,
+                                thread_id=t_id,
+                                tool_name=tool_name,
+                                tool_call_id=call_id,
+                                deferred=tr.deferred,
+                                result=tr,
+                                agent_name=agent.name,
+                                agent_depth=depth,
+                                agent_path=agent.name,
+                            )
+                            if not registered:
+                                tr = ToolResult(
+                                    output=None,
+                                    success=False,
+                                    error_message=(
+                                        "Background tool queue full or disabled"
+                                    ),
+                                )
+                            else:
+                                deferred_output = {
+                                    "ticket_id": tr.deferred.ticket_id,
+                                    "status": tr.deferred.status,
+                                    "summary": tr.deferred.summary,
+                                    "resume_hint": tr.deferred.resume_hint,
+                                }
+                                tool_execs.append(
+                                    ToolExecutionRecord(
+                                        tool_name=tool_name,
+                                        tool_call_id=call_id,
+                                        success=True,
+                                        output=deferred_output,
+                                        error=None,
+                                        latency_ms=latency_ms,
+                                        agent_name=agent.name,
+                                        agent_depth=depth,
+                                        agent_path=agent.name,
+                                    )
+                                )
+                                tool_payload = {
+                                    "success": True,
+                                    "deferred": True,
+                                    "ticket_id": tr.deferred.ticket_id,
+                                    "status": tr.deferred.status,
+                                    "summary": tr.deferred.summary,
+                                    "resume_hint": tr.deferred.resume_hint,
+                                }
+                                messages.append(
+                                    Message(
+                                        role="tool",
+                                        name=tool_name,
+                                        content=render_untrusted_tool_message(
+                                            tool_name=tool_name,
+                                            payload=tool_payload,
+                                            max_chars=self.config.tool_output_max_chars,
+                                        )
+                                        if self.config.sanitize_tool_output
+                                        else json.dumps(tool_payload, ensure_ascii=True),
+                                    )
+                                )
+                                await self._emit(
+                                    handle,
+                                    memory,
+                                    AgentRunEvent(
+                                        type="tool_deferred",
+                                        run_id=run_id,
+                                        thread_id=t_id,
+                                        state=state,
+                                        step=step,
+                                        data={
+                                            "tool_name": tool_name,
+                                            "tool_call_id": call_id,
+                                            "ticket_id": tr.deferred.ticket_id,
+                                            "status": tr.deferred.status,
+                                            "summary": tr.deferred.summary,
+                                            "resume_hint": tr.deferred.resume_hint,
+                                            "agent_name": agent.name,
+                                            "agent_depth": depth,
+                                            "agent_path": agent.name,
+                                        },
+                                    ),
+                                    user_id=self._maybe_str(ctx.get("user_id")),
+                                )
+                                continue
+
                         rec = tool_record_from_result(
                             tool_name,
                             call_id,
@@ -1624,6 +1804,7 @@ class RunnerExecutionMixin:
                     pending_llm_response=pending_llm_response,
                     final_response=final_resp,
                     replayed_effect_count=replayed_effect_count,
+                    background_tools_pending=await self._snapshot_background_pending(run_id=run_id),
                 )
 
                 if state == "degraded":
@@ -1750,6 +1931,7 @@ class RunnerExecutionMixin:
                 tool_calls=tool_calls,
                 started_at_s=started_at_s,
                 replayed_effect_count=replayed_effect_count,
+                    background_tools_pending=await self._snapshot_background_pending(run_id=run_id),
             )
             try:
                 await self._flush_checkpoint_writes()
@@ -1813,6 +1995,7 @@ class RunnerExecutionMixin:
                     tool_calls=tool_calls,
                     started_at_s=started_at_s,
                     replayed_effect_count=replayed_effect_count,
+                    background_tools_pending=await self._snapshot_background_pending(run_id=run_id),
                 )
                 try:
                     await self._flush_checkpoint_writes()
@@ -1874,6 +2057,7 @@ class RunnerExecutionMixin:
                     tool_calls=tool_calls,
                     started_at_s=started_at_s,
                     replayed_effect_count=replayed_effect_count,
+                    background_tools_pending=await self._snapshot_background_pending(run_id=run_id),
                 )
                 try:
                     await self._flush_checkpoint_writes()
@@ -1935,6 +2119,7 @@ class RunnerExecutionMixin:
                 tool_calls=tool_calls,
                 started_at_s=started_at_s,
                 replayed_effect_count=replayed_effect_count,
+                    background_tools_pending=await self._snapshot_background_pending(run_id=run_id),
             )
             try:
                 await self._flush_checkpoint_writes()
@@ -1995,6 +2180,7 @@ class RunnerExecutionMixin:
             if self._active_runs <= 0:
                 self._active_runs = 0
                 await self._stop_checkpoint_writer()
+                await self._stop_background_poller()
                 if self._owns_memory_store and self._memory_store is not None:
                     try:
                         await self._memory_store.close()

@@ -24,6 +24,7 @@ from typing import (
     Type,
     TypeVar,
     Union,
+    Literal,
 )
 
 from pydantic import BaseModel, ValidationError
@@ -67,6 +68,20 @@ class ToolContext:
 
 
 @dataclass(frozen=True, slots=True)
+class ToolDeferredHandle:
+    """
+    Deferred tool execution marker used for background orchestration.
+    """
+
+    ticket_id: str
+    tool_name: str
+    status: Literal["pending", "running", "completed", "failed"] = "pending"
+    poll_after_s: float | None = None
+    summary: str | None = None
+    resume_hint: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class ToolResult(Generic[ReturnT]):
     """
     Standardized result object returned by tools after execution.
@@ -82,6 +97,7 @@ class ToolResult(Generic[ReturnT]):
     tool_name: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
     tool_call_id: Optional[str] = None
+    deferred: ToolDeferredHandle | None = None
 
 
 def as_async(fn: ToolFn) -> AsyncToolFn:
@@ -264,6 +280,17 @@ class BaseTool(Generic[ArgsT, ReturnT]):
                 output = await asyncio.wait_for(_run(), timeout=effective_timeout)
             else:
                 output = await _run()
+
+            if isinstance(output, ToolResult):
+                return ToolResult(
+                    output=output.output,
+                    success=output.success,
+                    error_message=output.error_message,
+                    tool_name=output.tool_name or self.spec.name,
+                    metadata=dict(output.metadata),
+                    tool_call_id=output.tool_call_id or tool_call_id,
+                    deferred=output.deferred,
+                )
 
             return ToolResult(
                 output=output,
@@ -518,6 +545,17 @@ class Tool(BaseTool[ArgsT, ReturnT]):
                 error_message=str(err),
                 tool_name=self.spec.name,
                 tool_call_id=tool_call_id,
+            )
+
+        if isinstance(output, ToolResult):
+            return ToolResult(
+                output=output.output,
+                success=output.success,
+                error_message=output.error_message,
+                tool_name=output.tool_name or self.spec.name,
+                metadata=dict(output.metadata),
+                tool_call_id=output.tool_call_id or tool_call_id,
+                deferred=output.deferred,
             )
 
         # 5) Run posthooks

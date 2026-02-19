@@ -20,6 +20,7 @@ from .core import (
     Tool,
     ToolContext,
     ToolResult,
+    ToolDeferredHandle,
     ToolSpec,
     PreHook,
     PostHook,
@@ -69,6 +70,7 @@ __all__ = [
     "ToolSpec",
     "ToolContext",
     "ToolResult",
+    "ToolDeferredHandle",
     "ToolFn",
     "as_async",
     # hooks/middleware

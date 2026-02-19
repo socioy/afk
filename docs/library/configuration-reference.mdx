@@ -36,9 +36,20 @@ from afk.agents import Agent
 | `tool_parallelism`          | `int`             | `None`           | Max concurrent tool calls (falls back to `fail_safe`)          |
 | `subagent_parallelism_mode` | `str`             | `configurable`   | `single`, `parallel`, or `configurable`                        |
 | `fail_safe`                 | `FailSafeConfig`  | defaults         | Runtime limits and failure policies                            |
+| `reasoning_enabled`         | `bool \| None`    | `None`           | Default request `thinking` flag for this agent                 |
+| `reasoning_effort`          | `str \| None`     | `None`           | Default request `thinking_effort` label                         |
+| `reasoning_max_tokens`      | `int \| None`     | `None`           | Default request `max_thinking_tokens`                           |
 | `enable_skill_tools`        | `bool`            | `True`           | Auto-register built-in skill tools                             |
 | `enable_mcp_tools`          | `bool`            | `True`           | Auto-register tools from configured MCP servers                |
 | `runner`                    | `Runner`          | `None`           | Optional runner override                                       |
+
+### Reasoning override precedence
+
+Reasoning values are resolved in this order:
+
+1. Run context override: `context[\"_afk\"][\"reasoning\"]`
+2. Agent defaults: `reasoning_enabled`, `reasoning_effort`, `reasoning_max_tokens`
+3. Provider defaults/validation in the LLM layer
 
 ---
 
@@ -72,6 +83,14 @@ from afk.core import RunnerConfig
 | `checkpoint_queue_maxsize`                | `int`            | `1024`                                     | Max queued checkpoint write jobs                            |
 | `checkpoint_flush_timeout_s`              | `float`          | `10.0`                                     | Timeout for terminal checkpoint flush                       |
 | `checkpoint_coalesce_runtime_state`       | `bool`           | `True`                                     | Coalesce repeated `runtime_state` checkpoint writes         |
+| `debug`                                   | `bool`           | `False`                                    | Enable debug metadata in emitted run events                 |
+| `debug_config`                            | `RunnerDebugConfig \| None` | `None`                          | Advanced debug controls (verbosity/content/redaction)       |
+| `background_tools_enabled`                | `bool`           | `True`                                     | Enable deferred/background tool orchestration               |
+| `background_tool_default_grace_s`         | `float`          | `0.0`                                      | Default grace window before background continuation         |
+| `background_tool_max_pending`             | `int`            | `256`                                      | Maximum unresolved background tool tickets per run          |
+| `background_tool_poll_interval_s`         | `float`          | `0.5`                                      | Poll interval for external/persisted ticket resolution      |
+| `background_tool_result_ttl_s`            | `float`          | `3600.0`                                   | TTL before pending ticket is marked failed                  |
+| `background_tool_interrupt_on_resolve`    | `bool`           | `True`                                     | Hint loop wake-up when deferred tool resolves              |
 
 ### Deep Dive: Interaction Models
 

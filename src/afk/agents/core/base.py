@@ -73,6 +73,9 @@ class BaseAgent:
         tool_parallelism: int | None = None,
         subagent_parallelism_mode: SubagentParallelismMode = "configurable",
         fail_safe: FailSafeConfig | None = None,
+        reasoning_enabled: bool | None = None,
+        reasoning_effort: str | None = None,
+        reasoning_max_tokens: int | None = None,
         skill_tool_policy: SkillToolPolicy | None = None,
         enable_skill_tools: bool = True,
         enable_mcp_tools: bool = True,
@@ -116,6 +119,9 @@ class BaseAgent:
             subagent_parallelism_mode: Subagent execution mode. `configurable`
                 follows router decision; `single` and `parallel` force behavior.
             fail_safe: Runtime limits and failure policies for this agent.
+            reasoning_enabled: Default reasoning/thinking enable flag.
+            reasoning_effort: Default reasoning effort label.
+            reasoning_max_tokens: Default max reasoning token budget.
             skill_tool_policy: Security/limits policy for built-in skill tools.
             enable_skill_tools: Whether to auto-register built-in skill tools.
             enable_mcp_tools: Whether to auto-register tools from configured
@@ -149,6 +155,9 @@ class BaseAgent:
         self.tool_parallelism = tool_parallelism
         self.subagent_parallelism_mode = subagent_parallelism_mode
         self.fail_safe = fail_safe or FailSafeConfig(max_steps=max_steps)
+        self.reasoning_enabled = reasoning_enabled
+        self.reasoning_effort = reasoning_effort
+        self.reasoning_max_tokens = reasoning_max_tokens
         self.skill_tool_policy = skill_tool_policy or SkillToolPolicy()
         self.enable_skill_tools = enable_skill_tools
         self.enable_mcp_tools = enable_mcp_tools

@@ -112,6 +112,7 @@
           "library/configuration-reference",
           "library/environment-variables",
           "library/full-module-reference",
+          "library/debugger",
           "library/public-imports-and-function-improvement",
           "library/run-event-contract",
           "library/llm-interaction",

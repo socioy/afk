@@ -41,6 +41,9 @@ asyncio.run(main())
 | `step_started` | New step in the agent loop | `event.step`, `event.state` |
 | `tool_started` | A tool call is about to execute | `event.tool_name`, `event.tool_call_id`, `event.step` |
 | `tool_completed` | A tool call finished | `event.tool_name`, `event.tool_call_id`, `event.tool_success`, `event.tool_output`, `event.tool_error` |
+| `tool_deferred` | A tool call was accepted but deferred | `event.tool_name`, `event.tool_call_id`, `event.tool_ticket_id`, `event.data.resume_hint` |
+| `tool_background_resolved` | A deferred tool finished successfully | `event.tool_name`, `event.tool_ticket_id`, `event.tool_output` |
+| `tool_background_failed` | A deferred tool failed/expired | `event.tool_name`, `event.tool_ticket_id`, `event.tool_error` |
 | `completed` | Run finished | `event.result` (full `AgentResult`) |
 | `error` | Stream/runtime bridge error | `event.error` |
 
@@ -67,6 +70,19 @@ await handle.pause()
 await handle.resume()
 await handle.interrupt()
 result = await handle.await_result()
+```
+
+## Background tools example
+
+```python
+stream = await runner.run_stream(agent, user_message="Implement feature, run build, and write docs")
+async for event in stream:
+    if event.type == "tool_deferred" and event.tool_name == "build_project":
+        print(f"[build queued] ticket={event.tool_ticket_id}")
+    elif event.type == "tool_background_resolved" and event.tool_name == "build_project":
+        print(f"[build done] output={event.tool_output}")
+    elif event.type == "text_delta":
+        print(event.text_delta, end="")
 ```
 
 ## Error handling

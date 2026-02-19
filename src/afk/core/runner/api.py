@@ -105,6 +105,10 @@ class RunnerAPIMixin:
         self._checkpoint_pending_event.set()
         self._checkpoint_coalesce_buffer = {}
         self._checkpoint_coalesce_keys = set()
+        self._background_lock = asyncio.Lock()
+        self._background_pending = {}
+        self._background_ready = {}
+        self._background_poller_task = None
 
     async def compact_thread(
         self,
@@ -396,6 +400,7 @@ class RunnerAPIMixin:
             stream_completed,
             stream_error,
             text_delta,
+            tool_deferred as _tool_deferred,
             tool_started as _tool_started,
             step_started as _step_started,
         )
@@ -469,6 +474,43 @@ class RunnerAPIMixin:
                                 tool_name=str(event.data.get("tool_name", "")),
                                 tool_call_id=event.data.get("tool_call_id")
                                 if isinstance(event.data.get("tool_call_id"), str)
+                                else None,
+                                tool_success=bool(event.data.get("success", False)),
+                                tool_output=event.data.get("output"),
+                                tool_error=event.data.get("error")
+                                if isinstance(event.data.get("error"), str)
+                                else None,
+                                step=event.step,
+                                data=dict(event.data),
+                            )
+                        )
+                    elif event.type == "tool_deferred" and event.data:
+                        await stream.emit(
+                            _tool_deferred(
+                                str(event.data.get("tool_name", "")),
+                                tool_call_id=event.data.get("tool_call_id")
+                                if isinstance(event.data.get("tool_call_id"), str)
+                                else None,
+                                ticket_id=event.data.get("ticket_id")
+                                if isinstance(event.data.get("ticket_id"), str)
+                                else None,
+                                step=event.step,
+                                data=dict(event.data),
+                            )
+                        )
+                    elif event.type in (
+                        "tool_background_resolved",
+                        "tool_background_failed",
+                    ) and event.data:
+                        await stream.emit(
+                            AgentStreamEvent(
+                                type=event.type,
+                                tool_name=str(event.data.get("tool_name", "")),
+                                tool_call_id=event.data.get("tool_call_id")
+                                if isinstance(event.data.get("tool_call_id"), str)
+                                else None,
+                                tool_ticket_id=event.data.get("ticket_id")
+                                if isinstance(event.data.get("ticket_id"), str)
                                 else None,
                                 tool_success=bool(event.data.get("success", False)),
                                 tool_output=event.data.get("output"),

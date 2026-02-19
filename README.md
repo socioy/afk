@@ -114,6 +114,60 @@ async for event in handle:
 
 [Read the Streaming Guide →](https://afk.arpan.sh/library/streaming)
 
+### Debug Mode
+
+Use debugger facade or runner config:
+
+```python
+from afk.debugger import Debugger, DebuggerConfig
+
+debugger = Debugger(DebuggerConfig(redact_secrets=True, verbosity="detailed"))
+runner = debugger.runner()
+```
+
+```python
+from afk.core import Runner, RunnerConfig
+
+runner = Runner(config=RunnerConfig(debug=True))
+```
+
+### Reasoning Controls
+
+Set agent defaults and optionally override per run:
+
+```python
+agent = Agent(
+    ...,
+    reasoning_enabled=True,
+    reasoning_effort="low",
+    reasoning_max_tokens=256,
+)
+
+result = await runner.run(
+    agent,
+    context={"_afk": {"reasoning": {"enabled": True, "effort": "high", "max_tokens": 512}}},
+)
+```
+
+### Background Tools
+
+Tools can defer long-running work and resolve later:
+
+```python
+from afk.tools import ToolResult, ToolDeferredHandle
+
+return ToolResult(
+    success=True,
+    deferred=ToolDeferredHandle(
+        ticket_id="build-1",
+        tool_name="build_project",
+        status="running",
+        resume_hint="continue docs while build runs",
+    ),
+    metadata={"background_task": build_future},
+)
+```
+
 ### Evals
 
 Test your agents with the built-in eval suite.

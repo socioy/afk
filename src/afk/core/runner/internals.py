@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import time
 import asyncio
+import inspect
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable
 
@@ -58,6 +59,7 @@ from ...memory import (
 )
 from ...observability import contracts as obs_contracts
 from ...tools import ToolResult
+from ...tools import ToolDeferredHandle
 from ..telemetry import TelemetryEvent, TelemetrySpan
 from .types import _RunHandle
 
@@ -76,11 +78,50 @@ class _CheckpointCoalesceToken:
     key: str
 
 
+@dataclass(slots=True)
+class _BackgroundToolPending:
+    run_id: str
+    thread_id: str
+    ticket_id: str
+    tool_name: str
+    tool_call_id: str | None
+    created_at_s: float
+    poll_after_s: float | None
+    summary: str | None
+    resume_hint: str | None
+    agent_name: str | None
+    agent_depth: int | None
+    agent_path: str | None
+    task: asyncio.Task[Any] | None = None
+
+
+@dataclass(slots=True)
+class _BackgroundToolResolution:
+    run_id: str
+    ticket_id: str
+    tool_name: str
+    tool_call_id: str | None
+    success: bool
+    output: JSONValue | None
+    error: str | None
+    agent_name: str | None
+    agent_depth: int | None
+    agent_path: str | None
+
+
 StreamTextDeltaSink = Callable[[str], Awaitable[None]]
 
 
 class RunnerInternalsMixin:
     """Shared internal helpers used by the execution and API mixins."""
+
+    _DEBUG_REDACT_KEYS = (
+        "api_key",
+        "token",
+        "secret",
+        "authorization",
+        "password",
+    )
 
     def _enforce_budget(
         self,
@@ -130,6 +171,79 @@ class RunnerInternalsMixin:
                 f"Exceeded max_total_cost_usd={fail_safe.max_total_cost_usd}"
             )
 
+    def _debug_enabled(self) -> bool:
+        return bool(self.config.debug)
+
+    def _debug_config(self):
+        cfg = self.config.debug_config
+        if cfg is not None:
+            return cfg
+        from .types import RunnerDebugConfig
+
+        return RunnerDebugConfig()
+
+    def _debug_redact(self, value: Any) -> Any:
+        if isinstance(value, dict):
+            out: dict[str, Any] = {}
+            for key, item in value.items():
+                key_s = str(key)
+                lowered = key_s.lower()
+                if any(marker in lowered for marker in self._DEBUG_REDACT_KEYS):
+                    out[key_s] = "***REDACTED***"
+                else:
+                    out[key_s] = self._debug_redact(item)
+            return out
+        if isinstance(value, list):
+            return [self._debug_redact(item) for item in value]
+        return value
+
+    def _debug_limit(self, value: Any, *, limit: int) -> Any:
+        if isinstance(value, str):
+            if len(value) > limit:
+                return value[:limit] + "..."
+            return value
+        if isinstance(value, dict):
+            return {str(k): self._debug_limit(v, limit=limit) for k, v in value.items()}
+        if isinstance(value, list):
+            return [self._debug_limit(v, limit=limit) for v in value]
+        return value
+
+    def _decorate_event_with_debug(self, event: AgentRunEvent) -> AgentRunEvent:
+        if not self._debug_enabled():
+            return event
+        cfg = self._debug_config()
+        if not cfg.enabled:
+            return event
+        data = dict(event.data)
+        debug_payload: dict[str, JSONValue] = {
+            "verbosity": str(cfg.verbosity),
+            "step": int(event.step or 0),
+            "event_type": event.type,
+        }
+        if cfg.emit_timestamps:
+            debug_payload["timestamp_ms"] = now_ms()
+        if cfg.emit_step_snapshots:
+            debug_payload["state"] = event.state
+        if cfg.include_content:
+            preview: Any = data
+            if cfg.redact_secrets:
+                preview = self._debug_redact(preview)
+            preview = self._debug_limit(preview, limit=max(64, int(cfg.max_payload_chars)))
+            debug_payload["payload_preview"] = (
+                preview if isinstance(preview, dict) else json_value_from_tool_result(preview)
+            )
+        data["debug"] = debug_payload
+        return AgentRunEvent(
+            type=event.type,
+            run_id=event.run_id,
+            thread_id=event.thread_id,
+            state=event.state,
+            step=event.step,
+            message=event.message,
+            data=data,
+            schema_version=event.schema_version,
+        )
+
     async def _emit(
         self,
         handle: _RunHandle,
@@ -147,6 +261,7 @@ class RunnerInternalsMixin:
             event: Event payload to emit.
             user_id: Optional user id for memory event.
         """
+        event = self._decorate_event_with_debug(event)
         await handle.emit(event)
         await self._interaction.notify(event)
         payload = {
@@ -409,6 +524,313 @@ class RunnerInternalsMixin:
             await self._checkpoint_queue.put(None)
             await asyncio.gather(self._checkpoint_writer_task, return_exceptions=True)
         self._checkpoint_writer_task = None
+
+    def _background_state_key(self, run_id: str, ticket_id: str) -> str:
+        return f"bgtool:{run_id}:{ticket_id}:state"
+
+    def _background_latest_key(self, run_id: str) -> str:
+        return f"bgtool:{run_id}:latest"
+
+    async def _ensure_background_poller(self) -> None:
+        if self._background_poller_task is not None and not self._background_poller_task.done():
+            return
+        if not self.config.background_tools_enabled:
+            return
+        self._background_poller_task = asyncio.create_task(self._background_poller_loop())
+
+    async def _background_poller_loop(self) -> None:
+        while True:
+            interval = max(0.1, float(self.config.background_tool_poll_interval_s))
+            await asyncio.sleep(interval)
+            await self._poll_background_pending()
+
+    async def _stop_background_poller(self) -> None:
+        task = self._background_poller_task
+        if task is None:
+            return
+        if not task.done():
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+        self._background_poller_task = None
+
+    async def _poll_background_pending(self) -> None:
+        pending_rows: list[_BackgroundToolPending] = []
+        async with self._background_lock:
+            for tickets in self._background_pending.values():
+                pending_rows.extend(tickets.values())
+        now_s = time.time()
+        for row in pending_rows:
+            ttl_s = max(1.0, float(self.config.background_tool_result_ttl_s))
+            if now_s - row.created_at_s > ttl_s:
+                await self._resolve_background_ticket(
+                    run_id=row.run_id,
+                    ticket_id=row.ticket_id,
+                    success=False,
+                    output=None,
+                    error="Background tool ticket expired",
+                )
+                continue
+            if row.task is not None:
+                if row.task.done():
+                    try:
+                        task_value = row.task.result()
+                        if isinstance(task_value, ToolResult):
+                            await self._resolve_background_ticket(
+                                run_id=row.run_id,
+                                ticket_id=row.ticket_id,
+                                success=bool(task_value.success),
+                                output=json_value_from_tool_result(task_value.output),
+                                error=task_value.error_message
+                                if isinstance(task_value.error_message, str)
+                                else None,
+                            )
+                        else:
+                            await self._resolve_background_ticket(
+                                run_id=row.run_id,
+                                ticket_id=row.ticket_id,
+                                success=True,
+                                output=json_value_from_tool_result(task_value),
+                                error=None,
+                            )
+                    except Exception as exc:
+                        await self._resolve_background_ticket(
+                            run_id=row.run_id,
+                            ticket_id=row.ticket_id,
+                            success=False,
+                            output=None,
+                            error=str(exc),
+                        )
+                continue
+            # Poll persisted ticket state for external completion.
+            memory = await self._ensure_memory_store()
+            state = await memory.get_state(
+                row.thread_id,
+                self._background_state_key(row.run_id, row.ticket_id),
+            )
+            if not isinstance(state, dict):
+                continue
+            status = state.get("status")
+            if status not in {"completed", "failed"}:
+                continue
+            await self._resolve_background_ticket(
+                run_id=row.run_id,
+                ticket_id=row.ticket_id,
+                success=status == "completed",
+                output=state.get("output"),
+                error=state.get("error") if isinstance(state.get("error"), str) else None,
+            )
+
+    async def _register_background_tool(
+        self,
+        *,
+        run_id: str,
+        thread_id: str,
+        tool_name: str,
+        tool_call_id: str | None,
+        deferred: ToolDeferredHandle,
+        result: ToolResult[Any],
+        agent_name: str | None,
+        agent_depth: int | None,
+        agent_path: str | None,
+    ) -> bool:
+        if not self.config.background_tools_enabled:
+            return False
+        await self._ensure_background_poller()
+        async with self._background_lock:
+            rows = self._background_pending.setdefault(run_id, {})
+            if len(rows) >= max(1, int(self.config.background_tool_max_pending)):
+                return False
+            awaitable = self._extract_background_awaitable(result)
+            task: asyncio.Task[Any] | None = None
+            if awaitable is not None:
+                task = asyncio.ensure_future(awaitable)
+            pending = _BackgroundToolPending(
+                run_id=run_id,
+                thread_id=thread_id,
+                ticket_id=deferred.ticket_id,
+                tool_name=tool_name,
+                tool_call_id=tool_call_id,
+                created_at_s=time.time(),
+                poll_after_s=deferred.poll_after_s,
+                summary=deferred.summary,
+                resume_hint=deferred.resume_hint,
+                agent_name=agent_name,
+                agent_depth=agent_depth,
+                agent_path=agent_path,
+                task=task,
+            )
+            rows[deferred.ticket_id] = pending
+        memory = await self._ensure_memory_store()
+        state = {
+            "run_id": run_id,
+            "thread_id": thread_id,
+            "ticket_id": deferred.ticket_id,
+            "tool_name": tool_name,
+            "tool_call_id": tool_call_id,
+            "status": deferred.status,
+            "summary": deferred.summary,
+            "resume_hint": deferred.resume_hint,
+            "created_at_ms": now_ms(),
+        }
+        await memory.put_state(
+            thread_id,
+            self._background_state_key(run_id, deferred.ticket_id),
+            state,  # type: ignore[arg-type]
+        )
+        await memory.put_state(
+            thread_id,
+            self._background_latest_key(run_id),
+            state,  # type: ignore[arg-type]
+        )
+        return True
+
+    def _extract_background_awaitable(self, result: ToolResult[Any]) -> Awaitable[Any] | None:
+        for key in ("background_task", "background_awaitable", "background_future"):
+            maybe = result.metadata.get(key)
+            if inspect.isawaitable(maybe):
+                return maybe  # type: ignore[return-value]
+        return None
+
+    async def _resolve_background_ticket(
+        self,
+        *,
+        run_id: str,
+        ticket_id: str,
+        success: bool,
+        output: JSONValue | None,
+        error: str | None,
+    ) -> None:
+        pending: _BackgroundToolPending | None = None
+        async with self._background_lock:
+            run_rows = self._background_pending.get(run_id)
+            if run_rows is not None:
+                pending = run_rows.pop(ticket_id, None)
+                if not run_rows:
+                    self._background_pending.pop(run_id, None)
+        if pending is None:
+            return
+        resolution = _BackgroundToolResolution(
+            run_id=run_id,
+            ticket_id=ticket_id,
+            tool_name=pending.tool_name,
+            tool_call_id=pending.tool_call_id,
+            success=success,
+            output=output,
+            error=error,
+            agent_name=pending.agent_name,
+            agent_depth=pending.agent_depth,
+            agent_path=pending.agent_path,
+        )
+        async with self._background_lock:
+            self._background_ready.setdefault(run_id, []).append(resolution)
+        memory = await self._ensure_memory_store()
+        state = {
+            "run_id": pending.run_id,
+            "thread_id": pending.thread_id,
+            "ticket_id": pending.ticket_id,
+            "tool_name": pending.tool_name,
+            "tool_call_id": pending.tool_call_id,
+            "status": "completed" if success else "failed",
+            "output": output,
+            "error": error,
+            "resolved_at_ms": now_ms(),
+        }
+        await memory.put_state(
+            pending.thread_id,
+            self._background_state_key(run_id, ticket_id),
+            state,  # type: ignore[arg-type]
+        )
+        await memory.put_state(
+            pending.thread_id,
+            self._background_latest_key(run_id),
+            state,  # type: ignore[arg-type]
+        )
+
+    async def _drain_background_resolutions(
+        self,
+        *,
+        run_id: str,
+    ) -> list[_BackgroundToolResolution]:
+        async with self._background_lock:
+            rows = self._background_ready.pop(run_id, [])
+        return rows
+
+    async def _snapshot_background_pending(self, *, run_id: str) -> list[dict[str, Any]]:
+        async with self._background_lock:
+            rows = dict(self._background_pending.get(run_id, {}))
+        out: list[dict[str, Any]] = []
+        for row in rows.values():
+            out.append(
+                {
+                    "run_id": row.run_id,
+                    "thread_id": row.thread_id,
+                    "ticket_id": row.ticket_id,
+                    "tool_name": row.tool_name,
+                    "tool_call_id": row.tool_call_id,
+                    "created_at_s": row.created_at_s,
+                    "poll_after_s": row.poll_after_s,
+                    "summary": row.summary,
+                    "resume_hint": row.resume_hint,
+                    "agent_name": row.agent_name,
+                    "agent_depth": row.agent_depth,
+                    "agent_path": row.agent_path,
+                }
+            )
+        return out
+
+    async def _restore_background_pending(
+        self,
+        *,
+        run_id: str,
+        value: Any,
+    ) -> None:
+        if not self.config.background_tools_enabled:
+            return
+        if not isinstance(value, list):
+            return
+        restored: dict[str, _BackgroundToolPending] = {}
+        for row in value:
+            if not isinstance(row, dict):
+                continue
+            ticket_id = row.get("ticket_id")
+            tool_name = row.get("tool_name")
+            thread_id = row.get("thread_id")
+            if not isinstance(ticket_id, str) or not isinstance(tool_name, str):
+                continue
+            if not isinstance(thread_id, str):
+                continue
+            restored[ticket_id] = _BackgroundToolPending(
+                run_id=run_id,
+                thread_id=thread_id,
+                ticket_id=ticket_id,
+                tool_name=tool_name,
+                tool_call_id=row.get("tool_call_id")
+                if isinstance(row.get("tool_call_id"), str)
+                else None,
+                created_at_s=float(row.get("created_at_s", time.time())),
+                poll_after_s=row.get("poll_after_s")
+                if isinstance(row.get("poll_after_s"), (int, float))
+                else None,
+                summary=row.get("summary") if isinstance(row.get("summary"), str) else None,
+                resume_hint=row.get("resume_hint")
+                if isinstance(row.get("resume_hint"), str)
+                else None,
+                agent_name=row.get("agent_name")
+                if isinstance(row.get("agent_name"), str)
+                else None,
+                agent_depth=row.get("agent_depth")
+                if isinstance(row.get("agent_depth"), int)
+                else None,
+                agent_path=row.get("agent_path")
+                if isinstance(row.get("agent_path"), str)
+                else None,
+            )
+        if not restored:
+            return
+        await self._ensure_background_poller()
+        async with self._background_lock:
+            run_rows = self._background_pending.setdefault(run_id, {})
+            run_rows.update(restored)
 
     def _build_llm_candidates(
         self,
@@ -788,6 +1210,7 @@ class RunnerInternalsMixin:
         pending_llm_response: LLMResponse | None,
         final_response: LLMResponse | None,
         replayed_effect_count: int,
+        background_tools_pending: list[dict[str, Any]] | None = None,
     ) -> None:
         """
         Persist checkpoint payload containing full runtime snapshot.
@@ -860,6 +1283,9 @@ class RunnerInternalsMixin:
             "pending_llm_response": self._serialize_llm_response(pending_llm_response),
             "final_response": self._serialize_llm_response(final_response),
             "replayed_effect_count": replayed_effect_count,
+            "background_tools_pending": (
+                background_tools_pending if isinstance(background_tools_pending, list) else []
+            ),
         }
         await self._persist_checkpoint(
             memory=memory,
@@ -1521,6 +1947,7 @@ class RunnerInternalsMixin:
         tool_calls: int,
         started_at_s: float,
         replayed_effect_count: int,
+        background_tools_pending: list[dict[str, Any]] | None = None,
     ) -> None:
         """Build, serialize, and persist a terminal checkpoint in one call."""
         result = self._build_terminal_result(
@@ -1558,6 +1985,11 @@ class RunnerInternalsMixin:
                 "state": state,
                 "message": message,
                 "terminal_result": self._serialize_agent_result(result),
+                "background_tools_pending": (
+                    background_tools_pending
+                    if isinstance(background_tools_pending, list)
+                    else []
+                ),
             },
         )
 

@@ -14,6 +14,7 @@ from .execution import RunnerExecutionMixin
 from .internals import RunnerInternalsMixin
 from .interaction import RunnerInteractionMixin
 from .types import RunnerConfig
+from .types import RunnerDebugConfig
 
 
 class Runner(
@@ -33,4 +34,4 @@ class Runner(
     """
 
 
-__all__ = ["Runner", "RunnerConfig"]
+__all__ = ["Runner", "RunnerConfig", "RunnerDebugConfig"]

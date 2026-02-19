@@ -229,7 +229,12 @@ class RunnerInteractionMixin:
                 )
                 async def _relay_child_events() -> None:
                     async for child_event in sub_handle.events:
-                        if child_event.type != "tool_completed":
+                        if child_event.type not in {
+                            "tool_completed",
+                            "tool_deferred",
+                            "tool_background_resolved",
+                            "tool_background_failed",
+                        }:
                             continue
                         payload = {
                             **child_event.data,
@@ -242,7 +247,7 @@ class RunnerInteractionMixin:
                             handle,
                             memory,
                             AgentRunEvent(
-                                type="tool_completed",
+                                type=child_event.type,
                                 run_id=run_id,
                                 thread_id=thread_id,
                                 state="running",

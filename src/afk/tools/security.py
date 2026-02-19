@@ -222,6 +222,7 @@ def apply_tool_output_limits(
         tool_name=result.tool_name,
         metadata=dict(result.metadata),
         tool_call_id=result.tool_call_id,
+        deferred=result.deferred,
     )
 
 

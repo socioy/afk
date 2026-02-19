@@ -26,6 +26,9 @@ AgentStreamEventType = Literal[
     "text_delta",
     "tool_started",
     "tool_completed",
+    "tool_deferred",
+    "tool_background_resolved",
+    "tool_background_failed",
     "step_started",
     "step_completed",
     "status_update",
@@ -63,6 +66,7 @@ class AgentStreamEvent:
     tool_success: bool | None = None
     tool_output: JSONValue | None = None
     tool_error: str | None = None
+    tool_ticket_id: str | None = None
     step: int | None = None
     state: AgentState | None = None
     run_event: AgentRunEvent | None = None
@@ -114,6 +118,25 @@ def tool_completed(
         tool_output=output,
         tool_error=error,
         step=step,
+    )
+
+
+def tool_deferred(
+    tool_name: str,
+    tool_call_id: str | None = None,
+    *,
+    ticket_id: str | None = None,
+    step: int | None = None,
+    data: dict[str, JSONValue] | None = None,
+) -> AgentStreamEvent:
+    """Create a tool-deferred stream event."""
+    return AgentStreamEvent(
+        type="tool_deferred",
+        tool_name=tool_name,
+        tool_call_id=tool_call_id,
+        tool_ticket_id=ticket_id,
+        step=step,
+        data=data or {},
     )
 
 

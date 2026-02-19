@@ -11,7 +11,7 @@ from .interaction import (
     InMemoryInteractiveProvider,
     InteractionProvider,
 )
-from .runner import Runner, RunnerConfig
+from .runner import Runner, RunnerConfig, RunnerDebugConfig
 from .runtime import (
     DelegationBackpressureError,
     DelegationEngine,
@@ -28,6 +28,7 @@ from .telemetry import (
 __all__ = [
     "Runner",
     "RunnerConfig",
+    "RunnerDebugConfig",
     "DelegationEngine",
     "DelegationPlanner",
     "DelegationGraphError",
