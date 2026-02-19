@@ -2,6 +2,23 @@ version = 1
 revision = 2
 requires-python = ">=3.13"
 
+[manifest]
+members = [
+    "01-greeting-agent",
+    "afk-py",
+]
+
+[[package]]
+name = "01-greeting-agent"
+version = "0.1.0"
+source = { virtual = "examples/projects/01_Greeting_Agent" }
+dependencies = [
+    { name = "requests" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "requests", specifier = ">=2.32.5" }]
+
 [[package]]
 name = "afk-py"
 version = "0.1.0"
@@ -33,16 +50,16 @@ requires-dist = [
     { name = "async-lru", specifier = ">=2.1.0" },
     { name = "asyncpg", specifier = ">=0.31.0" },
     { name = "cachetools", specifier = ">=7.0.1" },
-    { name = "claude-agent-sdk", specifier = ">=0.1.0" },
+    { name = "claude-agent-sdk", specifier = "==0.1.37" },
     { name = "fastapi", specifier = ">=0.129.0" },
     { name = "jinja2", specifier = ">=3.1.6" },
-    { name = "litellm", specifier = ">=1.81.9" },
+    { name = "litellm", specifier = "==1.81.13" },
     { name = "numpy", specifier = ">=2.3.0" },
-    { name = "openai", specifier = ">=1.0.0" },
+    { name = "openai", specifier = "==2.21.0" },
     { name = "prometheus-client", specifier = ">=0.24.1" },
     { name = "pyjwt", marker = "extra == 'a2a'", specifier = ">=2.10.1" },
     { name = "pytest", specifier = ">=9.0.2" },
-    { name = "redis", specifier = ">=7.1.1" },
+    { name = "redis", specifier = "==7.2.0" },
 ]
 provides-extras = ["a2a"]
 
@@ -330,18 +347,18 @@ wheels = [
 
 [[package]]
 name = "claude-agent-sdk"
-version = "0.1.36"
+version = "0.1.37"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
     { name = "mcp" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/66/79/c241e2c15779c04c36894fb84559068f9f1a8391f615c32e9e8b1db93e81/claude_agent_sdk-0.1.36.tar.gz", hash = "sha256:3c0a7322210c4a24177ca57d2a46ee74a641f5cf1ba4007f44b57b6d370abe5a", size = 61609, upload-time = "2026-02-13T20:08:48.558Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b9/12/c5b09c7fe50cc54bf3a4316059c0e2fb7653fb739f6fb35c9a2e8a363493/claude_agent_sdk-0.1.37.tar.gz", hash = "sha256:5a021582b8b44ca735415b85a2dd8732490f22bc3d51452ede82d7f2db4ee592", size = 61610, upload-time = "2026-02-16T21:50:42.115Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fd/ff/908fb18784e8116637fd2ecfdf398a88739142afc5e73cc175cbff92d15c/claude_agent_sdk-0.1.36-py3-none-macosx_11_0_arm64.whl", hash = "sha256:e805d4201e435420a2a1757e8798738705c0129cca7c94954fa6b3ac4d68d7fe", size = 54805683, upload-time = "2026-02-13T20:08:32.602Z" },
-    { url = "https://files.pythonhosted.org/packages/90/90/9ac0dacff94c1cdf9f139521cf5578bff02463f92fe5866f86ccf55371b9/claude_agent_sdk-0.1.36-py3-none-manylinux_2_17_aarch64.whl", hash = "sha256:f398c091b9051e765eb54da40af43102b00dfd3c6628a31ce276d9afb5f665a1", size = 69557700, upload-time = "2026-02-13T20:08:37.179Z" },
-    { url = "https://files.pythonhosted.org/packages/d5/66/2b309f3b38aabb3d9b77742b2261c82db6de7ce4d9bedba46afbcc6b8597/claude_agent_sdk-0.1.36-py3-none-manylinux_2_17_x86_64.whl", hash = "sha256:d0b7c67ee298551a31f22a671bdce972207a4276b320e17b4b526b754442e862", size = 70136851, upload-time = "2026-02-13T20:08:41.719Z" },
-    { url = "https://files.pythonhosted.org/packages/e5/4a/80b8d179477be8e373854615a6806997a512a8ac953f8e6795712ae2ebaf/claude_agent_sdk-0.1.36-py3-none-win_amd64.whl", hash = "sha256:6c0c133abe5a64a5f7a8f54e5d52828173c8993a1781e633355e6dce741a7a3f", size = 72666927, upload-time = "2026-02-13T20:08:46.025Z" },
+    { url = "https://files.pythonhosted.org/packages/51/61/fdc15695a89cc1f3c4b0e0d714593e00a89094b95fc5dcbec6972a602197/claude_agent_sdk-0.1.37-py3-none-macosx_11_0_arm64.whl", hash = "sha256:c810592bfb2927ba619d01c5588ead0c052452a51052a548fda885ca0dbca7ab", size = 54799463, upload-time = "2026-02-16T21:50:28.258Z" },
+    { url = "https://files.pythonhosted.org/packages/d9/3f/8057bd6f2dc6a077c32b9065336ced45c18aff602575c656b492b95b2428/claude_agent_sdk-0.1.37-py3-none-manylinux_2_17_aarch64.whl", hash = "sha256:61e821ba330ffc66fe9870c1ae3a76b05f69ac47da4446928ca6fe0569e1d42e", size = 69543239, upload-time = "2026-02-16T21:50:31.642Z" },
+    { url = "https://files.pythonhosted.org/packages/d0/7f/d13c843edea7418747127dc5d511968c5f83709737e296e54be40098299e/claude_agent_sdk-0.1.37-py3-none-manylinux_2_17_x86_64.whl", hash = "sha256:9814fbf52dd6a3aa070da023187184cf6fc679e88d8b3fd69d72dac55f8cc319", size = 70142154, upload-time = "2026-02-16T21:50:35.353Z" },
+    { url = "https://files.pythonhosted.org/packages/62/37/4ef55c5202246ac7c9319bc0b11896be5fd976051eff35109b95a039b76f/claude_agent_sdk-0.1.37-py3-none-win_amd64.whl", hash = "sha256:0934f5eba7598b613ce386cc57b985c7a9f6f1c4a1fba94e587ad84130374258", size = 72673142, upload-time = "2026-02-16T21:50:39.531Z" },
 ]
 
 [[package]]
@@ -782,7 +799,7 @@ wheels = [
 
 [[package]]
 name = "litellm"
-version = "1.81.9"
+version = "1.81.13"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -798,9 +815,9 @@ dependencies = [
     { name = "tiktoken" },
     { name = "tokenizers" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ff/8f/2a08f3d86fd008b4b02254649883032068378a8551baed93e8d9dcbbdb5d/litellm-1.81.9.tar.gz", hash = "sha256:a2cd9bc53a88696c21309ef37c55556f03c501392ed59d7f4250f9932917c13c", size = 16276983, upload-time = "2026-02-07T21:14:24.473Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/72/80/b6cb799e7100953d848e106d0575db34c75bc3b57f31f2eefdfb1e23655f/litellm-1.81.13.tar.gz", hash = "sha256:083788d9c94e3371ff1c42e40e0e8198c497772643292a65b1bc91a3b3b537ea", size = 16562861, upload-time = "2026-02-17T02:00:47.466Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0b/8b/672fc06c8a2803477e61e0de383d3c6e686e0f0fc62789c21f0317494076/litellm-1.81.9-py3-none-any.whl", hash = "sha256:24ee273bc8a62299fbb754035f83fb7d8d44329c383701a2bd034f4fd1c19084", size = 14433170, upload-time = "2026-02-07T21:14:21.469Z" },
+    { url = "https://files.pythonhosted.org/packages/be/f3/fffb7932870163cea7addc392165647a9a8a5489967de486c854226f1141/litellm-1.81.13-py3-none-any.whl", hash = "sha256:ae4aea2a55e85993f5f6dd36d036519422d24812a1a3e8540d9e987f2d7a4304", size = 14587505, upload-time = "2026-02-17T02:00:44.22Z" },
 ]
 
 [[package]]
@@ -1013,7 +1030,7 @@ wheels = [
 
 [[package]]
 name = "openai"
-version = "2.20.0"
+version = "2.21.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
@@ -1025,9 +1042,9 @@ dependencies = [
     { name = "tqdm" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/6e/5a/f495777c02625bfa18212b6e3b73f1893094f2bf660976eb4bc6f43a1ca2/openai-2.20.0.tar.gz", hash = "sha256:2654a689208cd0bf1098bb9462e8d722af5cbe961e6bba54e6f19fb843d88db1", size = 642355, upload-time = "2026-02-10T19:02:54.145Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/92/e5/3d197a0947a166649f566706d7a4c8f7fe38f1fa7b24c9bcffe4c7591d44/openai-2.21.0.tar.gz", hash = "sha256:81b48ce4b8bbb2cc3af02047ceb19561f7b1dc0d4e52d1de7f02abfd15aa59b7", size = 644374, upload-time = "2026-02-14T00:12:01.577Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b5/a0/cf4297aa51bbc21e83ef0ac018947fa06aea8f2364aad7c96cbf148590e6/openai-2.20.0-py3-none-any.whl", hash = "sha256:38d989c4b1075cd1f76abc68364059d822327cf1a932531d429795f4fc18be99", size = 1098479, upload-time = "2026-02-10T19:02:52.157Z" },
+    { url = "https://files.pythonhosted.org/packages/cc/56/0a89092a453bb2c676d66abee44f863e742b2110d4dbb1dbcca3f7e5fc33/openai-2.21.0-py3-none-any.whl", hash = "sha256:0bc1c775e5b1536c294eded39ee08f8407656537ccc71b1004104fe1602e267c", size = 1103065, upload-time = "2026-02-14T00:11:59.603Z" },
 ]
 
 [[package]]
@@ -1325,11 +1342,11 @@ wheels = [
 
 [[package]]
 name = "redis"
-version = "7.1.1"
+version = "7.2.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/f7/80/2971931d27651affa88a44c0ad7b8c4a19dc29c998abb20b23868d319b59/redis-7.1.1.tar.gz", hash = "sha256:a2814b2bda15b39dad11391cc48edac4697214a8a5a4bd10abe936ab4892eb43", size = 4800064, upload-time = "2026-02-09T18:39:40.292Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/9f/32/6fac13a11e73e1bc67a2ae821a72bfe4c2d8c4c48f0267e4a952be0f1bae/redis-7.2.0.tar.gz", hash = "sha256:4dd5bf4bd4ae80510267f14185a15cba2a38666b941aff68cccf0256b51c1f26", size = 4901247, upload-time = "2026-02-16T17:16:22.797Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/29/55/1de1d812ba1481fa4b37fb03b4eec0fcb71b6a0d44c04ea3482eb017600f/redis-7.1.1-py3-none-any.whl", hash = "sha256:f77817f16071c2950492c67d40b771fa493eb3fccc630a424a10976dbb794b7a", size = 356057, upload-time = "2026-02-09T18:39:38.602Z" },
+    { url = "https://files.pythonhosted.org/packages/86/cf/f6180b67f99688d83e15c84c5beda831d1d341e95872d224f87ccafafe61/redis-7.2.0-py3-none-any.whl", hash = "sha256:01f591f8598e483f1842d429e8ae3a820804566f1c73dca1b80e23af9fba0497", size = 394898, upload-time = "2026-02-16T17:16:20.693Z" },
 ]
 
 [[package]]
