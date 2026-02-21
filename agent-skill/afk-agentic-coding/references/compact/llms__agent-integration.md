@@ -1,0 +1,93 @@
+# Agent Integration
+
+Integration boundary between orchestration layers and the afk.llms transport layer.
+
+Source: `docs/llms/agent-integration.mdx`
+
+This document defines how agent code should integrate with `afk.llms`.
+
+## TL;DR
+
+- `afk.agents` owns orchestration and tool execution decisions.
+- `afk.llms` owns transport, normalization, retries, and capability enforcement.
+- Keeping this boundary clean makes provider migration and observability predictable.
+
+## When to Use
+
+- You are integrating custom agent runtimes with `afk.llms`.
+- You need clear ownership boundaries between transport and orchestration.
+- You are debugging behavior that crosses the agent/LLM package boundary.
+
+## Ownership Boundary
+
+Agent layer owns:
+
+- system prompt strategy
+- tool definition generation
+- tool execution/orchestration policy
+- persistence of conversation/session/checkpoint tokens
+
+LLM layer (`afk.llms`) owns:
+
+- provider transport
+- normalized request/response/stream contracts
+- retries and timeout envelopes
+- structured output validation/repair
+- capability gating and explicit errors
+- optional stream/session control primitives
+
+## Tool Contract
+
+Agents pass tools in normalized `LLMRequest.tools` shape (or equivalent exported tool format mapped into it).
+`afk.llms` transports tool definitions and returns normalized model-emitted `tool_calls`.
+`afk.llms` does not execute tools.
+
+## Structured Output
+
+Use:
+
+- `chat(req, response_model=MySchema)`
+- `chat_stream(req, response_model=MySchema)` or `chat_stream_handle(...)`
+
+Flow:
+
+- If provider returns native structured payload, it is validated against `response_model`.
+- Otherwise text is parsed and validated as JSON.
+- Invalid outputs trigger repair retries up to `LLMConfig.json_max_retries`.
+
+## Request Correlation and Observability
+
+- If `LLMRequest.request_id` is not provided, base `LLM` generates one.
+- `request_id` is propagated to response and lifecycle events.
+- Register observers in client construction (`observers=[...]`) to receive typed lifecycle events:
+  - `request_start`, `retry`, `request_success`, `request_error`, `stream_event`, `cancel`, `interrupt`
+
+Observer errors are swallowed and never fail model calls.
+
+## Idempotency and Retry Safety
+
+- For non-safe operations, retries require both:
+  - a caller-provided `idempotency_key`
+  - adapter support (`capabilities.idempotency=True`)
+- Safe operations may retry without idempotency keys.
+
+## Minimal Example
+
+```python
+from afk.llms import LLMRequest, Message, create_llm
+
+llm = create_llm("litellm")
+req = LLMRequest(
+    model="ollama_chat/gpt-oss:20b",
+    request_id="agent-turn-42",
+    idempotency_key="agent-turn-42",
+    messages=[Message(role="user", content="Plan next step")],
+)
+resp = await llm.chat(req)
+```
+
+## Continue Reading
+
+1. [LLM Overview](/llms/index)
+2. [Contracts](/llms/contracts)
+3. [Streaming & Sessions](/llms/control-and-session)

@@ -6,6 +6,7 @@ DOCS_DIR="${AFK_DOCS_DIR:-$ROOT_DIR/docs}"
 SKILLS_DIR="${AFK_AGENT_SKILLS_DIR:-$ROOT_DIR/agent-skill}"
 OUT_DIR="${AFK_AI_INDEX_DIR:-$ROOT_DIR/ai-index}"
 BUNDLE_SKILL_DOCS=true
+TARGET_SKILL="${AFK_TARGET_SKILL:-}"
 
 usage() {
   cat <<'EOF'
@@ -15,12 +16,13 @@ Build AFK AI assets:
 3) bundles docs assets into each skill folder (optional)
 
 Usage:
-  scripts/build_agentic_ai_assets.sh [--no-bundle-skill-docs]
+  scripts/build_agentic_ai_assets.sh [--no-bundle-skill-docs] [--skill <skill-slug>]
 
 Environment overrides:
   AFK_DOCS_DIR
   AFK_AGENT_SKILLS_DIR
   AFK_AI_INDEX_DIR
+  AFK_TARGET_SKILL
 EOF
 }
 
@@ -28,6 +30,15 @@ while (($#)); do
   case "$1" in
     --no-bundle-skill-docs)
       BUNDLE_SKILL_DOCS=false
+      ;;
+    --skill)
+      if (($# < 2)); then
+        echo "--skill requires a value" >&2
+        usage
+        exit 1
+      fi
+      TARGET_SKILL="$2"
+      shift
       ;;
     -h|--help)
       usage
@@ -50,6 +61,11 @@ fi
 if [[ ! -d "$SKILLS_DIR" ]]; then
   echo "Skills directory not found: $SKILLS_DIR" >&2
   echo "Create skill folders first under: $SKILLS_DIR" >&2
+  exit 1
+fi
+
+if [[ -n "$TARGET_SKILL" ]] && [[ ! -f "$SKILLS_DIR/$TARGET_SKILL/SKILL.md" ]]; then
+  echo "Target skill not found: $SKILLS_DIR/$TARGET_SKILL" >&2
   exit 1
 fi
 
@@ -168,6 +184,90 @@ def parse_snippet(path: Path) -> tuple[str, str]:
     return file_name, body.strip("\n")
 
 
+def compact_filename(rel_path: str) -> str:
+    base = rel_path.replace("\\", "/")
+    if base.endswith(".mdx"):
+        base = base[:-4]
+    base = re.sub(r"[^a-zA-Z0-9/_-]", "-", base).strip("/")
+    if not base:
+        base = "index"
+    return base.replace("/", "__") + ".md"
+
+
+def infer_description(text: str, fallback_topic: str) -> str:
+    plain = plain_text(text).strip()
+    if not plain:
+        return f"Compact reference for {fallback_topic}."
+    sentence = plain.split(". ", 1)[0].strip()
+    sentence = sentence.strip("`*_>- ")
+    if len(re.findall(r"[A-Za-z]", sentence)) < 3:
+        return f"Compact reference for {fallback_topic}."
+    if len(sentence) > 180:
+        sentence = sentence[:177].rstrip() + "..."
+    if not sentence.endswith("."):
+        sentence += "."
+    return sentence
+
+
+def truncate_fenced_code_blocks(content: str, source_rel_path: str, max_lines: int = 40) -> str:
+    lines = content.splitlines()
+    output: list[str] = []
+    idx = 0
+
+    while idx < len(lines):
+        line = lines[idx]
+        match = re.match(r"^(\s*)(`{3,})(.*)$", line)
+        if not match:
+            output.append(line)
+            idx += 1
+            continue
+
+        indent = match.group(1)
+        fence = match.group(2)
+        opening = line
+        block = [line]
+        idx += 1
+        closed = False
+
+        while idx < len(lines):
+            block.append(lines[idx])
+            if re.match(rf"^{re.escape(indent)}{re.escape(fence)}\s*$", lines[idx]):
+                closed = True
+                idx += 1
+                break
+            idx += 1
+
+        if not closed:
+            output.extend(block)
+            continue
+
+        code_lines = block[1:-1]
+        if len(code_lines) <= max_lines:
+            output.extend(block)
+            continue
+
+        output.append(opening)
+        output.extend(code_lines[:max_lines])
+        output.append(f"{indent}{fence}")
+        output.append("")
+        output.append(
+            f"> Code block truncated to {max_lines} lines. Source: `docs/{source_rel_path}`"
+        )
+
+    return "\n".join(output)
+
+
+def normalize_mdx_body(body: str, source_rel_path: str) -> str:
+    content = body.replace("\r\n", "\n")
+    content = re.sub(r"^\s*(import|export)\s+.+$", "", content, flags=re.M)
+    content = re.sub(r"<[A-Za-z][^>\n]*/>", "", content)
+    content = re.sub(r"</?[^>]+>", "", content)
+    content = truncate_fenced_code_blocks(content, source_rel_path, max_lines=40)
+    content = re.sub(r"[ \t]+\n", "\n", content)
+    content = re.sub(r"\n{3,}", "\n\n", content)
+    return content.strip()
+
+
 doc_candidates = sorted(
     [
         p
@@ -258,6 +358,55 @@ inverted_payload = {
     encoding="utf-8",
 )
 
+compact_dir = out_dir / "compact-mdx"
+compact_dir.mkdir(parents=True, exist_ok=True)
+for stale in compact_dir.glob("*.md"):
+    stale.unlink()
+
+mdx_candidates = sorted(p for p in docs_dir.rglob("*.mdx") if p.is_file())
+compact_entries: list[dict[str, str]] = []
+
+for mdx_path in mdx_candidates:
+    rel = mdx_path.relative_to(docs_dir).as_posix()
+    raw = mdx_path.read_text(encoding="utf-8")
+    meta, body = parse_frontmatter(raw)
+    topic = (meta.get("title") or mdx_path.stem).strip()
+    normalized_body = normalize_mdx_body(body, rel)
+    description = meta.get("description", "").strip() or infer_description(body, topic)
+    file_name = compact_filename(rel)
+    compact_lines = [f"# {topic}", "", description, "", f"Source: `docs/{rel}`", ""]
+    if normalized_body:
+        compact_lines.append(normalized_body)
+    compact_text = "\n".join(compact_lines).strip() + "\n"
+    content_sha = hashlib.sha256(compact_text.encode("utf-8")).hexdigest()
+    (compact_dir / file_name).write_text(compact_text, encoding="utf-8")
+    compact_entries.append(
+        {
+            "topic": topic,
+            "description": description,
+            "compact_filename": file_name,
+            "source_mdx_path": f"docs/{rel}",
+            "url": to_doc_url(rel),
+            "content_sha256": content_sha,
+        }
+    )
+
+compact_entries.sort(key=lambda entry: entry["source_mdx_path"])
+
+(out_dir / "compact-mdx-index.json").write_text(
+    json.dumps(
+        {
+            "generated_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
+            "docs_root": str(docs_dir),
+            "entries": compact_entries,
+        },
+        indent=2,
+        ensure_ascii=True,
+    )
+    + "\n",
+    encoding="utf-8",
+)
+
 skill_entries = []
 for skill_md in sorted(skills_dir.glob("*/SKILL.md")):
     name, description = read_skill_meta(skill_md)
@@ -336,6 +485,7 @@ examples_md = "\n".join(examples_lines).strip() + "\n"
 print(f"Indexed {len(documents)} docs files into: {out_dir}")
 print(f"Indexed {len(skill_entries)} skills into: {skills_dir / 'index.json'}")
 print(f"Merged {len(snippet_paths)} snippets into: {out_dir / 'examples.md'}")
+print(f"Generated {len(compact_entries)} compact markdown docs into: {compact_dir}")
 PY
 
 to_title_case() {
@@ -437,6 +587,132 @@ interface:
 EOF
 }
 
+upsert_skill_indexed_references_section() {
+  local skill_md_path="$1"
+  python3 - "$skill_md_path" <<'PY'
+from __future__ import annotations
+
+import re
+import sys
+from pathlib import Path
+
+skill_md = Path(sys.argv[1]).resolve()
+text = skill_md.read_text(encoding="utf-8")
+section_body = """## Indexed References
+
+- `references/index.json`: generated manifest of indexed references for this skill.
+- `references/compact/*.md`: compact markdown generated from `docs/**/*.mdx`.
+- `scripts/search_afk_docs.py "your query"`: quick lookup across bundled docs index.
+"""
+
+pattern = re.compile(r"\n## Indexed References\n(?:.*?)(?=\n## |\Z)", flags=re.S)
+if pattern.search(text):
+    updated = pattern.sub("\n" + section_body.strip() + "\n", text)
+else:
+    updated = text.rstrip() + "\n\n" + section_body.strip() + "\n"
+
+if updated != text:
+    skill_md.write_text(updated, encoding="utf-8")
+PY
+}
+
+write_skill_references_index() {
+  local skill_dir="$1"
+  local skill_slug="$2"
+  local compact_index_path="$3"
+  python3 - "$skill_dir" "$skill_slug" "$compact_index_path" <<'PY'
+from __future__ import annotations
+
+import datetime as dt
+import hashlib
+import json
+import sys
+from pathlib import Path
+
+skill_dir = Path(sys.argv[1]).resolve()
+skill_slug = sys.argv[2]
+compact_index_path = Path(sys.argv[3]).resolve()
+references_dir = skill_dir / "references"
+compact_dir = references_dir / "compact"
+
+compact_lookup: dict[str, dict[str, str | None]] = {}
+if compact_index_path.exists():
+    payload = json.loads(compact_index_path.read_text(encoding="utf-8"))
+    for entry in payload.get("entries", []):
+        file_name = entry.get("compact_filename")
+        if isinstance(file_name, str) and file_name:
+            compact_lookup[file_name] = entry
+
+
+def heading_and_description(path: Path) -> tuple[str, str]:
+    text = path.read_text(encoding="utf-8")
+    topic = path.stem.replace("-", " ").replace("_", " ").strip()
+    topic = " ".join(part.capitalize() for part in topic.split()) or path.stem
+    description = ""
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        if line.startswith("#"):
+            heading = line.lstrip("#").strip()
+            if heading:
+                topic = heading
+            continue
+        if line.startswith("Source:"):
+            continue
+        description = line
+        break
+    if not description:
+        description = f"Reference document from {path.name}."
+    return topic, description
+
+
+entries: list[dict[str, str | None]] = []
+for ref_path in sorted(references_dir.glob("*.md")):
+    if ref_path.name in {"README.md", "examples.md"}:
+        continue
+    topic, description = heading_and_description(ref_path)
+    content_sha = hashlib.sha256(ref_path.read_text(encoding="utf-8").encode("utf-8")).hexdigest()
+    entries.append(
+        {
+            "topic": topic,
+            "description": description,
+            "filepath": f"references/{ref_path.name}",
+            "source_mdx_path": None,
+            "url": None,
+            "content_sha256": content_sha,
+        }
+    )
+
+for ref_path in sorted(compact_dir.glob("*.md")):
+    metadata = compact_lookup.get(ref_path.name, {})
+    fallback_topic, fallback_description = heading_and_description(ref_path)
+    topic = str(metadata.get("topic") or fallback_topic).strip() or fallback_topic
+    description = str(metadata.get("description") or fallback_description).strip() or fallback_description
+    content_sha = hashlib.sha256(ref_path.read_text(encoding="utf-8").encode("utf-8")).hexdigest()
+    entries.append(
+        {
+            "topic": topic,
+            "description": description,
+            "filepath": f"references/compact/{ref_path.name}",
+            "source_mdx_path": metadata.get("source_mdx_path"),
+            "url": metadata.get("url"),
+            "content_sha256": content_sha,
+        }
+    )
+
+index_payload = {
+    "generated_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
+    "skill": skill_slug,
+    "entries": entries,
+}
+(references_dir / "index.json").write_text(
+    json.dumps(index_payload, indent=2, ensure_ascii=True) + "\n",
+    encoding="utf-8",
+)
+PY
+}
+
 bundle_docs_into_skills() {
   for skill_dir in "$SKILLS_DIR"/*; do
     [[ -d "$skill_dir" ]] || continue
@@ -444,8 +720,14 @@ bundle_docs_into_skills() {
 
     local skill_slug
     skill_slug="$(basename "$skill_dir")"
+    if [[ -n "$TARGET_SKILL" ]] && [[ "$skill_slug" != "$TARGET_SKILL" ]]; then
+      continue
+    fi
+
     local refs_dir="$skill_dir/references/afk-docs"
-    mkdir -p "$refs_dir" "$skill_dir/scripts" "$skill_dir/agents"
+    local refs_root_dir="$skill_dir/references"
+    local compact_refs_dir="$refs_root_dir/compact"
+    mkdir -p "$refs_dir" "$refs_root_dir" "$compact_refs_dir" "$skill_dir/scripts" "$skill_dir/agents"
 
     cp "$OUT_DIR/docs-index.json" "$refs_dir/docs-index.json"
     cp "$OUT_DIR/docs-index.jsonl" "$refs_dir/docs-index.jsonl"
@@ -453,9 +735,14 @@ bundle_docs_into_skills() {
     cp "$OUT_DIR/id-to-path.json" "$refs_dir/id-to-path.json"
     cp "$OUT_DIR/path-to-id.json" "$refs_dir/path-to-id.json"
     cp "$OUT_DIR/manifest.json" "$refs_dir/manifest.json"
-    cp "$OUT_DIR/examples.md" "$skill_dir/references/examples.md"
+    cp "$OUT_DIR/examples.md" "$refs_root_dir/examples.md"
 
-    cat > "$skill_dir/references/README.md" <<EOF
+    if compgen -G "$compact_refs_dir/*.md" > /dev/null; then
+      rm -f "$compact_refs_dir"/*.md
+    fi
+    cp "$OUT_DIR"/compact-mdx/*.md "$compact_refs_dir"/
+
+    cat > "$refs_root_dir/README.md" <<EOF
 # Bundled AFK Docs Index
 
 This folder is generated by:
@@ -471,6 +758,8 @@ Files:
 - \`afk-docs/inverted-index.json\`: token -> doc id map
 - \`afk-docs/id-to-path.json\`: doc id -> docs path
 - \`examples.md\`: merged runnable examples from snippets
+- \`compact/*.md\`: compact markdown generated from docs \`.mdx\` files
+- \`index.json\`: indexed references manifest (\`topic\`, \`description\`, \`filepath\`, source metadata)
 
 Quick search:
 
@@ -480,6 +769,8 @@ python scripts/search_afk_docs.py "system prompts"
 EOF
 
     write_search_script "$skill_dir"
+    write_skill_references_index "$skill_dir" "$skill_slug" "$OUT_DIR/compact-mdx-index.json"
+    upsert_skill_indexed_references_section "$skill_dir/SKILL.md"
 
     if [[ ! -f "$skill_dir/agents/openai.yaml" ]]; then
       write_openai_yaml "$skill_dir" "$skill_slug"
@@ -489,10 +780,18 @@ EOF
 
 if $BUNDLE_SKILL_DOCS; then
   bundle_docs_into_skills
-  echo "Bundled docs index into skill folders under: $SKILLS_DIR"
+  if [[ -n "$TARGET_SKILL" ]]; then
+    echo "Bundled docs index into skill folder: $SKILLS_DIR/$TARGET_SKILL"
+  else
+    echo "Bundled docs index into skill folders under: $SKILLS_DIR"
+  fi
 fi
 
 echo "Done."
+if [[ -n "$TARGET_SKILL" ]]; then
+  echo "Target skill: $TARGET_SKILL"
+fi
 echo "Docs index: $OUT_DIR/docs-index.json"
 echo "Fast search file set: $OUT_DIR/inverted-index.json and $OUT_DIR/text/*.txt"
 echo "Merged examples: $OUT_DIR/examples.md"
+echo "Compact docs metadata: $OUT_DIR/compact-mdx-index.json"

@@ -1,0 +1,235 @@
+# Architecture
+
+System architecture for agent execution, policy checks, tool orchestration, persistence, and telemetry.
+
+Source: `docs/library/architecture.mdx`
+
+This page describes how the runtime is assembled from `afk` modules and how execution flows through policy, LLM, tools, memory, and telemetry.
+
+## TL;DR
+
+- `Agent` is configuration; `Runner` is execution.
+- Each step: policy -> LLM -> optional tools -> checkpoint.
+- Memory stores checkpoints and replayable tool effects.
+- Security is enforced at tool boundaries (sandbox + sanitization).
+
+## When to Use
+
+- You are integrating AFK into a backend and need a reliable mental model.
+- You need to debug why a run paused, degraded, or failed.
+- You are extending runtime behavior (policy, interaction, telemetry, memory).
+
+For a maturity-first implementation plan, start with [Agentic System Levels](/library/agentic-levels).
+
+Related deep dives:
+
+- [Developer Guide](/library/developer-guide)
+- [Tool Call Lifecycle](/library/tool-call-lifecycle)
+- [Agent Skills](/library/agent-skills)
+- [System Prompts](/library/system-prompts)
+- [LLM Flow](/library/llm-interaction)
+- [Agentic Orchestration](/library/agentic-behavior)
+- [Checkpoint & Resume](/library/checkpoint-schema)
+- [Run Event Contract](/library/run-event-contract)
+- [Failure Policies](/library/failure-policy-matrix)
+- [Security Model](/library/security-model)
+
+## Required Capabilities
+
+- clear model/adaptor strategy and policy posture
+- bounded tool execution with sandbox and output constraints
+- checkpoint storage for recovery and long-running runs
+- telemetry sink wiring for runtime visibility
+
+## Component Diagram
+
+```mermaid
+flowchart TD
+    U["User / Caller"] --> A["afk.agents.Agent / BaseAgent"]
+    A --> R["afk.core.Runner"]
+
+    R --> I["InteractionProvider\n(headless / custom)"]
+    R --> P["PolicyEngine + policy_roles"]
+    R --> L["afk.llms.LLM adapter"]
+    R --> T["ToolRegistry + Tools"]
+    R --> M["MemoryStore"]
+    R --> O["TelemetrySink"]
+
+    L --> LF["LLM factory/adapters\n(OpenAI, LiteLLM, Anthropic Agent SDK)"]
+    T --> TS["Sandbox + output limits\nregistry middleware"]
+    T --> TP["Prebuilt runtime/skill tools"]
+    M --> MB["InMemory / SQLite / Redis / Postgres"]
+
+    R --> C["Checkpoint + runtime snapshots"]
+    C --> M
+    R --> E["Effect journal replay"]
+    E --> M
+```
+
+## Run Sequence
+
+```mermaid
+sequenceDiagram
+    participant Caller
+    participant Runner
+    participant Policy
+    participant LLM
+    participant Tools
+    participant Interaction
+    participant Memory
+
+    Caller->>Runner: run_handle(agent, message, context)
+    Runner->>Memory: setup + emit run_started + checkpoint
+    Runner->>Runner: resolve model + prompt source + skills + tool registry
+
+    loop each step
+        Runner->>Memory: persist runtime_state checkpoint
+        Runner->>Policy: evaluate (subagent/llm/tool events)
+
+        opt policy requests approval/input
+            Runner->>Interaction: request_approval/request_user_input
+            Interaction-->>Runner: immediate decision or deferred token
+            opt deferred
+                Runner->>Memory: paused checkpoint
+                Runner->>Interaction: await_deferred(timeout)
+                Runner->>Memory: resumed checkpoint
+            end
+        end
+
+        Runner->>LLM: chat(request)
+        LLM-->>Runner: text + tool_calls + usage
+        Runner->>Memory: checkpoint post_llm
+
+        alt tool_calls empty
+            Runner->>Runner: finalize result
+        else tools requested
+            Runner->>Runner: sandbox validation + policy gates
+            Runner->>Memory: try effect replay (idempotency)
+            Runner->>Tools: execute unresolved tool calls
+            Tools-->>Runner: ToolResult
+            Runner->>Memory: persist effect rows + post_tool_batch
+            Runner->>Runner: append tool output message(s)
+```
+
+> Code block truncated to 40 lines. Source: `docs/library/architecture.mdx`
+
+## Agent State Model
+
+```mermaid
+stateDiagram-v2
+    [*] --> pending
+    pending --> running
+    pending --> cancelled
+    pending --> failed
+
+    running --> paused
+    running --> cancelling
+    running --> cancelled
+    running --> degraded
+    running --> failed
+    running --> completed
+
+    paused --> running
+    paused --> cancelling
+    paused --> cancelled
+    paused --> failed
+
+    cancelling --> cancelled
+    cancelling --> failed
+
+    degraded --> failed
+    degraded --> completed
+```
+
+State transitions are enforced by `validate_state_transition(...)` in `afk/agents/runtime.py`.
+
+## Persistence Model
+
+Runner stores checkpoints/state in memory backends with these key families:
+
+- `checkpoint:{run_id}:{step}:{phase}`
+- `checkpoint:{run_id}:latest`
+- `effect:{run_id}:{step}:{tool_call_id}`
+
+What is persisted:
+
+- Lifecycle checkpoints (`run_started`, `pre_llm`, `post_llm`, `pre_tool_batch`, `post_tool_batch`, `run_terminal`, etc.)
+- Runtime snapshots (`phase="runtime_state"`) with transcript/context/usage/counters
+- Effect journal rows for idempotent replay of successful tool calls
+
+Resume behavior:
+
+- `Runner.resume_handle(...)` checks latest checkpoint.
+- If latest checkpoint is already terminal and includes serialized terminal result, it returns immediately.
+- Otherwise it loads latest `runtime_state` snapshot and continues from there.
+
+## Security Model
+
+Tool outputs are treated as untrusted by default:
+
+- Untrusted preamble is injected into system context.
+- Tool outputs can be sanitized/redacted/truncated before returning to LLM context.
+- Optional sandbox profile can block:
+  - network URLs
+  - command execution
+  - shell operators
+  - out-of-bound filesystem paths
+
+Main enforcement points:
+
+- `validate_tool_args_against_sandbox(...)`
+- `apply_tool_output_limits(...)`
+- `RunnerConfig.sanitize_tool_output`
+
+## Failure Policy Routing
+
+`FailSafeConfig` policies are normalized into runtime actions:
+
+- LLM failure policy => `fail` or `degrade`
+- Tool/subagent/approval policies => `fail`, `degrade`, or `continue`
+
+This mapping is centralized in `afk/core/runner/internals.py`.
+
+## Telemetry Path
+
+Runner emits telemetry for:
+
+- run duration and terminal status
+- per-event counters
+- llm/tool/subagent latency histograms
+- interaction wait latency
+- span lifecycle with optional OpenTelemetry integration
+
+Sinks:
+
+- backend id resolution (`Runner(telemetry=\"null\" | \"inmemory\" | \"otel\")`)
+- sink instance injection (`Runner(telemetry=)`)
+- backend registry extensibility via `afk.observability.backends.register_telemetry_backend(...)`
+
+## Failure Modes
+
+- invalid state transitions raise execution failures
+- budget/cost/time limit breaches terminate or degrade runs
+- checkpoint corruption blocks reliable resume
+- policy/sandbox denials can interrupt tool and LLM progression
+
+## Implementation Checklist
+
+1. Choose model and adapter strategy (`model` prefix or resolver).
+2. Set fail-safe limits (`max_steps`, budgets, failure policies).
+3. Add policy gates for tool and LLM decisions.
+4. Configure sandbox and sanitization for tool output.
+5. Enable persistent memory backend before production rollout.
+6. Monitor run events and telemetry to detect degraded paths early.
+
+## Examples
+
+- [examples/01_minimal_chat_agent.py](/library/examples/index#01-minimal-chat-agent)
+- [examples/02_policy_with_hitl.py](/library/examples/index#02-policy-with-hitl)
+- [examples/03_subagents_with_router.py](/library/examples/index#03-subagents-with-router)
+- [examples/04_resume_and_compact.py](/library/examples/index#04-resume-and-compact)
+
+## Continue Reading
+
+1. [Tool Lifecycle](/library/tool-call-lifecycle)
+2. [Checkpoint & Resume](/library/checkpoint-schema)

@@ -1,0 +1,49 @@
+# 08_prebuilt_runtime_tools
+
+Compact reference for 08_prebuilt_runtime_tools.
+
+Source: `docs/library/snippets/08_prebuilt_runtime_tools.mdx`
+
+````python 08_prebuilt_runtime_tools.py
+"""
+Example 08: Prebuilt runtime filesystem tools.
+
+Run:
+    python 08_prebuilt_runtime_tools.py
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from afk.tools import ToolRegistry, build_runtime_tools
+
+async def main() -> None:
+    root = (Path.cwd() / ".afk_runtime_tools_demo").resolve()
+    root.mkdir(parents=True, exist_ok=True)
+    (root / "README.txt").write_text(
+        "AFK runtime tools demo file.\nThis file is safe to read.",
+        encoding="utf-8",
+    )
+
+    runtime_tools = build_runtime_tools(root_dir=root)
+
+    registry = ToolRegistry()
+    registry.register_many(runtime_tools)
+
+    list_result = await registry.call(
+        "list_directory",
+        {
+            "path": ".",
+            "max_entries": 10,
+        },
+    )
+
+    read_result = await registry.call(
+        "read_file",
+        {
+            "path": "README.txt",
+            "max_chars": 500,
+````
+
+> Code block truncated to 40 lines. Source: `docs/library/snippets/08_prebuilt_runtime_tools.mdx`

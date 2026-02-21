@@ -1,0 +1,350 @@
+{
+  "generated_at_utc": "2026-02-17T21:14:18.573627+00:00",
+  "skill": "afk-agentic-coding",
+  "entries": [
+    {
+      "topic": "AFK Agentic Build Playbook",
+      "description": "Use this when implementing AFK agents end-to-end.",
+      "filepath": "references/agentic-build-playbook.md",
+      "source_mdx_path": null,
+      "url": null,
+      "content_sha256": "8519ba699993662686fa44d211282663d3ed5e53f92b837b060a8e4d3a52b5a1"
+    },
+    {
+      "topic": "Feature Selection Matrix",
+      "description": "Select only the capabilities needed for the current project stage.",
+      "filepath": "references/feature-selection-matrix.md",
+      "source_mdx_path": null,
+      "url": null,
+      "content_sha256": "617257e1048ea3fd1466e210caac0cec100c840e59925ebbc0c703a7f7b00eef"
+    },
+    {
+      "topic": "AFK",
+      "description": "Build production-ready agent systems with policy, tools, memory, and provider-agnostic LLM orchestration.",
+      "filepath": "references/compact/index.md",
+      "source_mdx_path": "docs/index.mdx",
+      "url": "/",
+      "content_sha256": "ac8bd0eee8b36059bc35ae4fb64e247c4c7f36f3aac7f445a8f4b6c79df7c14e"
+    },
+    {
+      "topic": "Agent Skills",
+      "description": "Configure, secure, and operate AFK agent skills with runtime-bound skill tools.",
+      "filepath": "references/compact/library__agent-skills.md",
+      "source_mdx_path": "docs/library/agent-skills.mdx",
+      "url": "/library/agent-skills",
+      "content_sha256": "0fe7dd2cb1a06fb01cbd2375184e1fdfc20a0fe40519c32f8619f60646c3a19d"
+    },
+    {
+      "topic": "Agent Orchestration",
+      "description": "How AFK routes, runs, and observes subagents with deterministic orchestration behavior.",
+      "filepath": "references/compact/library__agentic-behavior.md",
+      "source_mdx_path": "docs/library/agentic-behavior.mdx",
+      "url": "/library/agentic-behavior",
+      "content_sha256": "2f55b2cb562d20707f09d9c910187d3cd48feee455024c5015370fd2f579d43e"
+    },
+    {
+      "topic": "Agentic Levels",
+      "description": "Structured maturity levels for building AFK agents from simple chat flows to production-grade multi-agent systems.",
+      "filepath": "references/compact/library__agentic-levels.md",
+      "source_mdx_path": "docs/library/agentic-levels.mdx",
+      "url": "/library/agentic-levels",
+      "content_sha256": "af8ae0a0a49dda752abc006956ff9652dfc68d4c56bc7767f9f51bf470c35b6d"
+    },
+    {
+      "topic": "API Reference",
+      "description": "Complete public API reference for afk.agents, afk.core, afk.llms, afk.tools, afk.memory, and afk.evals.",
+      "filepath": "references/compact/library__api-reference.md",
+      "source_mdx_path": "docs/library/api-reference.mdx",
+      "url": "/library/api-reference",
+      "content_sha256": "b77d032e1d03574b83e20dbe87ce52d7908176f76060cb85414c49da0f55f01a"
+    },
+    {
+      "topic": "Architecture",
+      "description": "System architecture for agent execution, policy checks, tool orchestration, persistence, and telemetry.",
+      "filepath": "references/compact/library__architecture.md",
+      "source_mdx_path": "docs/library/architecture.mdx",
+      "url": "/library/architecture",
+      "content_sha256": "d4e4b77cbeb3c0e98df7a797877bfe4d2adefe0b91b6e744bace4efb43f91224"
+    },
+    {
+      "topic": "Building with AI",
+      "description": "Install AFK skills with the skills CLI and start building AFK agents faster.",
+      "filepath": "references/compact/library__building-with-ai.md",
+      "source_mdx_path": "docs/library/building-with-ai.mdx",
+      "url": "/library/building-with-ai",
+      "content_sha256": "812963028ac5a8832b2f3274d83c95608dd3e0d055d2aa017498e2b107e0dae1"
+    },
+    {
+      "topic": "Checkpoint & Resume",
+      "description": "Checkpoint data model, lifecycle phases, resume semantics, and corruption safeguards.",
+      "filepath": "references/compact/library__checkpoint-schema.md",
+      "source_mdx_path": "docs/library/checkpoint-schema.mdx",
+      "url": "/library/checkpoint-schema",
+      "content_sha256": "920c604e31727fc47dc63e2ce38bd0fc2c87891605d86e7cc2f3471626d407d6"
+    },
+    {
+      "topic": "Developer Guide",
+      "description": "Fastest path to build your first AFK agent and harden it for production.",
+      "filepath": "references/compact/library__developer-guide.md",
+      "source_mdx_path": "docs/library/developer-guide.mdx",
+      "url": "/library/developer-guide",
+      "content_sha256": "55930401449e6ed66628d4af91d58f4dac895979587af0c6522a49ab5ee26a54"
+    },
+    {
+      "topic": "Evals",
+      "description": "Enterprise eval case and suite execution with adaptive scheduling, assertions, and budgets.",
+      "filepath": "references/compact/library__evals.md",
+      "source_mdx_path": "docs/library/evals.mdx",
+      "url": "/library/evals",
+      "content_sha256": "7d9d4ccbb3f261b0106c74a7c92075be6ca72aa450d10920110274c1f17c05d5"
+    },
+    {
+      "topic": "Examples",
+      "description": "Runnable AFK examples in build order with architecture diagrams and customization guidance.",
+      "filepath": "references/compact/library__examples__index.md",
+      "source_mdx_path": "docs/library/examples/index.mdx",
+      "url": "/library/examples/",
+      "content_sha256": "1f11277347c9da95415d1bb9096135e63eb928e7b63051f3ba6f2c43b256bdf0"
+    },
+    {
+      "topic": "Failure Policies",
+      "description": "Failure handling matrix across llm, tools, subagents, approvals, and runtime budgets.",
+      "filepath": "references/compact/library__failure-policy-matrix.md",
+      "source_mdx_path": "docs/library/failure-policy-matrix.mdx",
+      "url": "/library/failure-policy-matrix",
+      "content_sha256": "b9ea203d1517163a0aa9fcc600747decec58ab08b367b391fdd9c16b9c03bd61"
+    },
+    {
+      "topic": "Full Module Reference",
+      "description": "Module-by-module symbol map across the full AFK source tree.",
+      "filepath": "references/compact/library__full-module-reference.md",
+      "source_mdx_path": "docs/library/full-module-reference.mdx",
+      "url": "/library/full-module-reference",
+      "content_sha256": "07701599573ff54ca7b3bdbcfc21277d387df74c09f228fda1aef2b42604655e"
+    },
+    {
+      "topic": "LLM Interaction",
+      "description": "Detailed LLM request lifecycle, retries, structured output flow, and runtime contracts.",
+      "filepath": "references/compact/library__llm-interaction.md",
+      "source_mdx_path": "docs/library/llm-interaction.mdx",
+      "url": "/library/llm-interaction",
+      "content_sha256": "ff143df51329126eba4d01dc9c6e09d63768ed288d8dc224c50031b0354914b6"
+    },
+    {
+      "topic": "MCP Server",
+      "description": "Expose AFK tools over MCP and consume external MCP servers from AFK agents.",
+      "filepath": "references/compact/library__mcp-server.md",
+      "source_mdx_path": "docs/library/mcp-server.mdx",
+      "url": "/library/mcp-server",
+      "content_sha256": "2f277e807e593d16b6d9dabb9fc0e5bbeed38766c26be0ce2bd8198539b7dad5"
+    },
+    {
+      "topic": "Agent-to-Agent Messaging",
+      "description": "Peer-to-peer async messaging between agents via a shared message bus.",
+      "filepath": "references/compact/library__messaging.md",
+      "source_mdx_path": "docs/library/messaging.mdx",
+      "url": "/library/messaging",
+      "content_sha256": "82448debe4bbf146ced3d267c8ab93e962f565d48d1c9475560c1808493b1af9"
+    },
+    {
+      "topic": "Observability",
+      "description": "Provider-driven telemetry backends, runtime collectors, metrics projectors, and exporters.",
+      "filepath": "references/compact/library__observability.md",
+      "source_mdx_path": "docs/library/observability.mdx",
+      "url": "/library/observability",
+      "content_sha256": "5170b752f72a90b6055e25c173117d685bdfd8e71cb9d65b69ddd2ca83236148"
+    },
+    {
+      "topic": "Library Overview",
+      "description": "Learn AFK quickly, then go deep into architecture, behavior, and full API contracts.",
+      "filepath": "references/compact/library__overview.md",
+      "source_mdx_path": "docs/library/overview.mdx",
+      "url": "/library/overview",
+      "content_sha256": "02c1bed38b66f71e2cfd358f8562c65bae2fac793be4859494c0a59e1dd5310a"
+    },
+    {
+      "topic": "Public Imports",
+      "description": "Public import rules and extension patterns for stable AFK integration code.",
+      "filepath": "references/compact/library__public-imports-and-function-improvement.md",
+      "source_mdx_path": "docs/library/public-imports-and-function-improvement.mdx",
+      "url": "/library/public-imports-and-function-improvement",
+      "content_sha256": "d512bb78adb49159fe1d05b7b4872c118514d850b8dd083dc78979fb3431c279"
+    },
+    {
+      "topic": "Run Events",
+      "description": "Event schema contract for runner lifecycle events and consumer integration.",
+      "filepath": "references/compact/library__run-event-contract.md",
+      "source_mdx_path": "docs/library/run-event-contract.mdx",
+      "url": "/library/run-event-contract",
+      "content_sha256": "a6977122ae3a94e4c020a4b0a8eed898b8e2f390b0936a1067549a22860a8fe9"
+    },
+    {
+      "topic": "Security",
+      "description": "Tool trust boundaries, sandbox enforcement, and output sanitization behavior in AFK.",
+      "filepath": "references/compact/library__security-model.md",
+      "source_mdx_path": "docs/library/security-model.mdx",
+      "url": "/library/security-model",
+      "content_sha256": "636687ed0743b92a582772cd290918e645bc79518d1efc734bde4ed91a027bb2"
+    },
+    {
+      "topic": "01_minimal_chat_agent",
+      "description": "Compact reference for 01_minimal_chat_agent.",
+      "filepath": "references/compact/library__snippets__01_minimal_chat_agent.md",
+      "source_mdx_path": "docs/library/snippets/01_minimal_chat_agent.mdx",
+      "url": "/library/snippets/01_minimal_chat_agent",
+      "content_sha256": "093c5c99adafdb4f72aa2551f74bd6555ff46377f9373977c842972881d27dfb"
+    },
+    {
+      "topic": "02_policy_with_hitl",
+      "description": "Compact reference for 02_policy_with_hitl.",
+      "filepath": "references/compact/library__snippets__02_policy_with_hitl.md",
+      "source_mdx_path": "docs/library/snippets/02_policy_with_hitl.mdx",
+      "url": "/library/snippets/02_policy_with_hitl",
+      "content_sha256": "2311299f02d946c564908e6f54acd80979970a0dcfe4b19b642383646136e376"
+    },
+    {
+      "topic": "03_subagents_with_router",
+      "description": "Compact reference for 03_subagents_with_router.",
+      "filepath": "references/compact/library__snippets__03_subagents_with_router.md",
+      "source_mdx_path": "docs/library/snippets/03_subagents_with_router.mdx",
+      "url": "/library/snippets/03_subagents_with_router",
+      "content_sha256": "18cb921bc95d64411006b39b8104c5515012f30321df317b6f7f5d1df9bcfa30"
+    },
+    {
+      "topic": "04_resume_and_compact",
+      "description": "Compact reference for 04_resume_and_compact.",
+      "filepath": "references/compact/library__snippets__04_resume_and_compact.md",
+      "source_mdx_path": "docs/library/snippets/04_resume_and_compact.mdx",
+      "url": "/library/snippets/04_resume_and_compact",
+      "content_sha256": "20e2a0fb96cd7c60c3e9b84c2cb773fd4424eed39a2ca5935386a0d6d20da878"
+    },
+    {
+      "topic": "05_direct_llm_structured_output",
+      "description": "Compact reference for 05_direct_llm_structured_output.",
+      "filepath": "references/compact/library__snippets__05_direct_llm_structured_output.md",
+      "source_mdx_path": "docs/library/snippets/05_direct_llm_structured_output.mdx",
+      "url": "/library/snippets/05_direct_llm_structured_output",
+      "content_sha256": "24adad7e5e98c95fb4f07602573123b07b2ed36b28e569d867fb3b20dd902ad5"
+    },
+    {
+      "topic": "06_tool_registry_security",
+      "description": "Compact reference for 06_tool_registry_security.",
+      "filepath": "references/compact/library__snippets__06_tool_registry_security.md",
+      "source_mdx_path": "docs/library/snippets/06_tool_registry_security.mdx",
+      "url": "/library/snippets/06_tool_registry_security",
+      "content_sha256": "6ab82847f6635859ab825c82f7adc69b8f3673d45a418223ef2635eb42183f14"
+    },
+    {
+      "topic": "07_tool_hooks_and_middleware",
+      "description": "Compact reference for 07_tool_hooks_and_middleware.",
+      "filepath": "references/compact/library__snippets__07_tool_hooks_and_middleware.md",
+      "source_mdx_path": "docs/library/snippets/07_tool_hooks_and_middleware.mdx",
+      "url": "/library/snippets/07_tool_hooks_and_middleware",
+      "content_sha256": "ffb25c22a0cfe48f6850d6c4681c3738c08370b86f2712acd2631bba048419b6"
+    },
+    {
+      "topic": "08_prebuilt_runtime_tools",
+      "description": "Compact reference for 08_prebuilt_runtime_tools.",
+      "filepath": "references/compact/library__snippets__08_prebuilt_runtime_tools.md",
+      "source_mdx_path": "docs/library/snippets/08_prebuilt_runtime_tools.mdx",
+      "url": "/library/snippets/08_prebuilt_runtime_tools",
+      "content_sha256": "9e8202af69fc4242d57cf0675ea1f161be938aadc6e56fa9b4ebe3ce6a8e2a9b"
+    },
+    {
+      "topic": "09_system_prompt_loader",
+      "description": "Compact reference for 09_system_prompt_loader.",
+      "filepath": "references/compact/library__snippets__09_system_prompt_loader.md",
+      "source_mdx_path": "docs/library/snippets/09_system_prompt_loader.mdx",
+      "url": "/library/snippets/09_system_prompt_loader",
+      "content_sha256": "f2d40ad0b2095149cd3f35b6dd4a833f868fe42e21a4949dca0aec029fae0c6e"
+    },
+    {
+      "topic": "Streaming",
+      "description": "Real-time token-by-token and event-level streaming during agent execution.",
+      "filepath": "references/compact/library__streaming.md",
+      "source_mdx_path": "docs/library/streaming.mdx",
+      "url": "/library/streaming",
+      "content_sha256": "b7275e9e57de04e58bad6c09c155081fb4f4cd8acd6c39150cdb200953e02450"
+    },
+    {
+      "topic": "System Prompts",
+      "description": "Auto-load, template, secure, and reuse AFK system prompts with a process-wide prompt store.",
+      "filepath": "references/compact/library__system-prompts.md",
+      "source_mdx_path": "docs/library/system-prompts.mdx",
+      "url": "/library/system-prompts",
+      "content_sha256": "aa56f6a75947e7e9bfe6cbbe1261dfd54935742767a9bfb45edc0d3b5f94765b"
+    },
+    {
+      "topic": "Task Queues",
+      "description": "Persistent task queues for distributed agent execution with automatic retry.",
+      "filepath": "references/compact/library__task-queues.md",
+      "source_mdx_path": "docs/library/task-queues.mdx",
+      "url": "/library/task-queues",
+      "content_sha256": "a4b4091bcdea52796839db1263324ac362969a9b00a5433062f0b05a2043ab4c"
+    },
+    {
+      "topic": "Tested Behaviors",
+      "description": "Behavioral guarantees and edge cases validated by the AFK test suite.",
+      "filepath": "references/compact/library__tested-behaviors.md",
+      "source_mdx_path": "docs/library/tested-behaviors.mdx",
+      "url": "/library/tested-behaviors",
+      "content_sha256": "9e3fedf6eba5dedda6ff69392dfc05ea4b33b5cc2214537f725ab523ac974b31"
+    },
+    {
+      "topic": "Tool Call Lifecycle",
+      "description": "Complete lifecycle of tool planning, approval, execution, replay, and output insertion.",
+      "filepath": "references/compact/library__tool-call-lifecycle.md",
+      "source_mdx_path": "docs/library/tool-call-lifecycle.mdx",
+      "url": "/library/tool-call-lifecycle",
+      "content_sha256": "0f5d5351a169ed1ac7cac2f84b77dda6c8e178db1b33c59a4cde06149b6accd3"
+    },
+    {
+      "topic": "Tools System",
+      "description": "Source-backed walkthrough of AFK tool registration, middleware, hooks, and security.",
+      "filepath": "references/compact/library__tools-system-walkthrough.md",
+      "source_mdx_path": "docs/library/tools-system-walkthrough.mdx",
+      "url": "/library/tools-system-walkthrough",
+      "content_sha256": "1c2050f633804124869d1041a034345b4ff5c18737ad8d36691903bf050a8f28"
+    },
+    {
+      "topic": "Adapters",
+      "description": "Built-in adapter behavior, transport notes, and custom adapter implementation guidance.",
+      "filepath": "references/compact/llms__adapters.md",
+      "source_mdx_path": "docs/llms/adapters.mdx",
+      "url": "/llms/adapters",
+      "content_sha256": "563e606060fff21cf41d2ac9dd53433536f9ab47f98156b3e717ce0ea5c9f521"
+    },
+    {
+      "topic": "Agent Integration",
+      "description": "Integration boundary between orchestration layers and the afk.llms transport layer.",
+      "filepath": "references/compact/llms__agent-integration.md",
+      "source_mdx_path": "docs/llms/agent-integration.mdx",
+      "url": "/llms/agent-integration",
+      "content_sha256": "3d8d68c9c2e1a4c04183b1bbe734014aa7f23159cfab56d80f7244033144cd45"
+    },
+    {
+      "topic": "Contracts",
+      "description": "Normalized LLM request, response, streaming, embeddings, capability, and error contracts.",
+      "filepath": "references/compact/llms__contracts.md",
+      "source_mdx_path": "docs/llms/contracts.mdx",
+      "url": "/llms/contracts",
+      "content_sha256": "2fa8acac7be14e5a3e1a853d356dfb4b0aa6bb1f2149cd0462891aab83a75af5"
+    },
+    {
+      "topic": "Streaming & Sessions",
+      "description": "Streaming control handle semantics and token-based session continuity behavior.",
+      "filepath": "references/compact/llms__control-and-session.md",
+      "source_mdx_path": "docs/llms/control-and-session.mdx",
+      "url": "/llms/control-and-session",
+      "content_sha256": "c0d9c5efe020ca6b3fa2244eec7b03d6db0cd65821853f16dfd4372b6c608d54"
+    },
+    {
+      "topic": "LLM Overview",
+      "description": "Provider-agnostic contracts, adapter capabilities, stream/session controls, and agent integration boundaries in afk.llms.",
+      "filepath": "references/compact/llms__index.md",
+      "source_mdx_path": "docs/llms/index.mdx",
+      "url": "/llms/",
+      "content_sha256": "f4315decc83dc294b2e38493f08b29401d782ebe436bd815c5bd9c437ec28058"
+    }
+  ]
+}

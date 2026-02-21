@@ -64,3 +64,9 @@ Use local custom tool when you need fast docs lookup:
 - https://afk.arpan.sh/library/agentic-levels
 - https://afk.arpan.sh/library/api-reference
 - https://afk.arpan.sh/library/tested-behaviors
+
+## Indexed References
+
+- `references/index.json`: generated manifest of indexed references for this skill.
+- `references/compact/*.md`: compact markdown generated from `docs/**/*.mdx`.
+- `scripts/search_afk_docs.py "your query"`: quick lookup across bundled docs index.
