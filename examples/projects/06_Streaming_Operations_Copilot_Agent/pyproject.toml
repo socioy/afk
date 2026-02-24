@@ -1,0 +1,9 @@
+[project]
+name = "06-streaming-operations-copilot-agent"
+version = "0.1.0"
+description = "Stream operational responses in real time while tracking live event analytics."
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "pydantic>=2.12.5",
+]
