@@ -1,9 +1,0 @@
-[project]
-name = "02-lead-intelligence-agent"
-version = "0.1.0"
-description = "Qualify inbound B2B leads with tool-assisted enrichment and basic run analytics."
-readme = "README.md"
-requires-python = ">=3.13"
-dependencies = [
-    "pydantic>=2.12.5",
-]
