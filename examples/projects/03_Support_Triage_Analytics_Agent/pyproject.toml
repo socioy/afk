@@ -1,9 +1,0 @@
-[project]
-name = "03-support-triage-analytics-agent"
-version = "0.1.0"
-description = "Route support tickets with multi-tool triage and execution quality metrics."
-readme = "README.md"
-requires-python = ">=3.13"
-dependencies = [
-    "pydantic>=2.12.5",
-]
