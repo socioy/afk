@@ -1,9 +1,0 @@
-[project]
-name = "08-resume-compaction-agent"
-version = "0.1.0"
-description = "Resume checkpointed runs and compact thread memory with retention analytics."
-readme = "README.md"
-requires-python = ">=3.13"
-dependencies = [
-    "pydantic>=2.12.5",
-]
