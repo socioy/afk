@@ -1,17 +1,23 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.13"
 
 [manifest]
 members = [
-    "02-weather-agent",
+    "01-greeting-agent",
+    "02-revenue-lead-scorer-agent",
     "afk-py",
 ]
 
 [[package]]
-name = "02-weather-agent"
+name = "01-greeting-agent"
 version = "0.1.0"
-source = { virtual = "examples/projects/02_Weather_Agent" }
+source = { virtual = "examples/projects/01_Greeting_Agent" }
+
+[[package]]
+name = "02-revenue-lead-scorer-agent"
+version = "0.1.0"
+source = { virtual = "examples/projects/02_Revenue_Lead_Scorer_Agent" }
 dependencies = [
     { name = "pydantic" },
 ]
