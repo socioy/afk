@@ -29,13 +29,13 @@ class InMemoryLLMCache(LLMCacheBackend):
         row = self._rows.get(key)
         if row is None:
             return None
-        if row.expires_at_s < time.time():
+        if row.expires_at_s < time.monotonic():
             self._rows.pop(key, None)
             return None
         return row.value
 
     async def set(self, key: str, value: LLMResponse, *, ttl_s: float) -> None:
-        now = time.time()
+        now = time.monotonic()
         # Evict expired entries first.
         expired = [k for k, v in self._rows.items() if v.expires_at_s < now]
         for k in expired:
