@@ -1,7 +1,23 @@
 
 # Customer Support Router
 
-A customer support system with specialist subagents (billing, technical, account, general) and a SubagentRouter callback that dynamically routes user queries to the right specialist based on keywords.
+A customer support system combining SubagentRouter for deterministic routing with InstructionRole callbacks for dynamic instruction augmentation based on customer tier, system health, and business hours.
+
+## Project Structure
+
+```
+20_Customer_Support_Router/
+  main.py       # Entry point — coordinator setup and conversation loop
+  agents.py     # Specialist subagents, SubagentRouter, coordinator with InstructionRoles
+  tools.py      # Tool definitions and simulated data (accounts, services, issues)
+  roles.py      # Three InstructionRole callbacks (tier, health, hours)
+```
+
+## Key Concepts
+
+- **SubagentRouter**: `(context: dict) -> list[str]` callback for deterministic routing
+- **InstructionRole**: `(context: dict, state: str) -> str | list[str] | None` callbacks that APPEND dynamic instructions to the agent's base instructions at runtime
+- **Stacked roles**: Multiple InstructionRoles run in order; each adds its own dynamic context
 
 Prerequisites
 - Run this from the repository root.
@@ -12,17 +28,11 @@ Usage
   ./scripts/setup_example.sh --project-dir=examples/projects/20_Customer_Support_Router
 
 - Run (absolute):
-  ./scripts/setup_example.sh --project-dir=/Users/username/pathtoafk/examples/projects/20_Customer_Support_Router
-
-Tip: build the absolute path dynamically from the repo root:
   ./scripts/setup_example.sh --project-dir=$(pwd)/examples/projects/20_Customer_Support_Router
 
 Expected interaction
+Customer username: alice
 User: I was charged twice on my credit card
-Agent: [Routes to billing-support] Let me check your account. What's your username?
+Agent: [Routes to billing-support, VIP handling for premium customer]
 User: The dashboard is really slow today
-Agent: [Routes to technical-support] Let me check the service status...
-User: I need to update my email address
-Agent: [Routes to account-support] I can help with that. What's your username?
-
-The coordinator uses a SubagentRouter callback for deterministic routing instead of relying on the LLM to choose.
+Agent: [Routes to technical-support, proactively mentions degraded database]
