@@ -1,0 +1,7 @@
+[project]
+name = "33-personal-wiki"
+version = "0.1.0"
+description = "A personal wiki agent demonstrating long-term memory and vector search with InMemoryMemoryStore"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = []
