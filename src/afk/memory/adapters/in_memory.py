@@ -8,16 +8,15 @@ This module provides an in-process memory store implementation for local develop
 
 from __future__ import annotations
 
-
 import asyncio
-from typing import Optional, Sequence
+from collections.abc import Sequence
 
 import numpy as np
 
+from afk.memory.store import MemoryCapabilities, MemoryStore
 from afk.memory.types import JsonValue, LongTermMemory, MemoryEvent
 from afk.memory.utils import json_dumps
 from afk.memory.vector import cosine_similarity
-from afk.memory.store import MemoryCapabilities, MemoryStore
 
 
 class InMemoryMemoryStore(MemoryStore):
@@ -104,7 +103,7 @@ class InMemoryMemoryStore(MemoryStore):
         self,
         memory: LongTermMemory,
         *,
-        embedding: Optional[Sequence[float]] = None,
+        embedding: Sequence[float] | None = None,
     ) -> None:
         self._ensure_setup()
         async with self._lock:

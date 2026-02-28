@@ -3,8 +3,8 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import AsyncIterator
 
 from afk.agents import Agent
 from afk.core import Runner

@@ -8,13 +8,15 @@ Skill, routing, and configuration types.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, TypeAlias
+from typing import TYPE_CHECKING, Any, TypeAlias
+
 from afk.llms.types import JSONValue
 
 if TYPE_CHECKING:
-    from afk.tools.core.base import Tool
     from afk.mcp.store import MCPServerRef
+    from afk.tools.core.base import Tool
 
 
 @dataclass(frozen=True, slots=True)

@@ -23,15 +23,34 @@ That's it. Three fields define a working agent. Everything else is optional.
 
 | Field              | Type                 | Default  | Purpose                                                         |
 | ------------------ | -------------------- | -------- | --------------------------------------------------------------- |
-| `name`             | `str`                | required | Agent identity for logs, telemetry, and subagent routing        |
-| `model`            | `str` or `LLMClient` | required | LLM model name or pre-built client instance                     |
-| `instructions`     | `str`                | `""`     | System prompt — what the agent knows and how it behaves         |
-| `instruction_file` | `str`                | `None`   | Path to a `.txt` or `.md` file containing the system prompt     |
-| `tools`            | `list[tool]`         | `[]`     | Typed functions the agent can call                              |
-| `subagents`        | `list[Agent]`        | `[]`     | Specialist agents this agent can delegate to                    |
+| `model`            | `str` or `LLM`       | required | LLM model name or pre-built client instance                     |
+| `name`             | `str`                | `None`   | Agent identity for logs, telemetry, and subagent routing        |
+| `instructions`     | `str`                | `None`   | System prompt — what the agent knows and how it behaves         |
+| `instruction_file` | `str` or `Path`      | `None`   | Path to a `.txt` or `.md` file containing the system prompt     |
+| `prompts_dir`      | `str` or `Path`      | `None`   | Directory containing prompt files resolved by the prompt store  |
+| `tools`            | `list[tool]`         | `None`   | Typed functions the agent can call                              |
+| `subagents`        | `list[Agent]`        | `None`   | Specialist agents this agent can delegate to                    |
+| `skills`           | `list[str]`          | `None`   | Skill names to resolve from `skills_dir`                        |
+| `skills_dir`       | `str` or `Path`      | `".agents/skills"` | Directory containing skill packs                    |
+| `mcp_servers`      | `list[MCPServerLike]`| `None`   | MCP server configs for external tool discovery                  |
 | `fail_safe`        | `FailSafeConfig`     | defaults | Step limits, cost budgets, timeout, and failure policies        |
-| `context_defaults` | `dict`               | `{}`     | Default JSON context merged into each run before caller context |
+| `context_defaults` | `dict`               | `None`   | Default JSON context merged into each run before caller context |
+| `inherit_context_keys` | `list[str]`      | `None`   | Context keys inherited from parent agent in delegation          |
 | `model_resolver`   | `callable`           | `None`   | Custom function to resolve model names to LLM clients           |
+| `instruction_roles` | `list[InstructionRole]` | `None` | Structured instruction sections with role-based ordering       |
+| `policy_roles`     | `list[PolicyRole]`   | `None`   | Role-based policy rules applied during execution                |
+| `policy_engine`    | `PolicyEngine`       | `None`   | Policy engine for tool/action gating                            |
+| `subagent_router`  | `SubagentRouter`     | `None`   | Custom routing logic for subagent delegation                    |
+| `max_steps`        | `int`                | `20`     | Maximum agent loop iterations                                   |
+| `tool_parallelism` | `int`                | `None`   | Max concurrent tool executions per step                         |
+| `subagent_parallelism_mode` | `str`       | `"configurable"` | How subagent concurrency is managed             |
+| `reasoning_enabled`| `bool`               | `None`   | Enable extended thinking / chain-of-thought                     |
+| `reasoning_effort` | `str`                | `None`   | Thinking effort level (e.g. `"low"`, `"medium"`, `"high"`)     |
+| `reasoning_max_tokens` | `int`            | `None`   | Token budget for extended thinking                              |
+| `skill_tool_policy`| `SkillToolPolicy`    | `None`   | Security policy for skill-provided tool execution               |
+| `enable_skill_tools` | `bool`             | `True`   | Whether to expose skill tools to the agent                      |
+| `enable_mcp_tools` | `bool`               | `True`   | Whether to expose MCP-discovered tools to the agent             |
+| `runner`           | `Runner`             | `None`   | Pre-bound runner instance (advanced usage)                      |
 
 ## Single agent vs multi-agent
 

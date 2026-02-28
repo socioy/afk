@@ -16,8 +16,8 @@ from ..agents.types import (
     AgentRunEvent,
     ApprovalDecision,
     ApprovalRequest,
-    DeferredDecision,
     DecisionKind,
+    DeferredDecision,
     UserInputDecision,
     UserInputRequest,
 )

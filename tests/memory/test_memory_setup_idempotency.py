@@ -14,6 +14,7 @@ def test_sqlite_setup_is_idempotent(tmp_path):
         first = store._connection
         await store.setup()
         assert store._connection is first
+        await store.close()
 
     asyncio.run(_scenario())
 
@@ -43,6 +44,7 @@ def test_redis_setup_is_idempotent(monkeypatch):
         await store.setup()
         assert calls["count"] == 1
         assert store._redis_client is first
+        await store.close()
 
     asyncio.run(_scenario())
 
@@ -94,5 +96,6 @@ def test_postgres_setup_is_idempotent(monkeypatch):
         await store.setup()
         assert calls["count"] == 1
         assert store._pool is first
+        await store.close()
 
     asyncio.run(_scenario())

@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 
 from afk.agents import Agent
+from afk.agents.types import RouterDecision
 from afk.core.runner import Runner
 from afk.llms import LLM
 from afk.llms.types import (
@@ -14,7 +15,6 @@ from afk.llms.types import (
 )
 from afk.observability import contracts as obs_contracts
 from afk.observability.backends import InMemoryTelemetrySink
-from afk.agents.types import RouterDecision
 
 
 def run_async(coro):

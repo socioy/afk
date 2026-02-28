@@ -33,9 +33,8 @@ class JSONLRunMetricsExporter:
         }
         line = json.dumps(payload, ensure_ascii=True)
         self._path.parent.mkdir(parents=True, exist_ok=True)
-        with self._lock:
-            with self._path.open("a", encoding="utf-8") as handle:
-                handle.write(line + "\n")
+        with self._lock, self._path.open("a", encoding="utf-8") as handle:
+            handle.write(line + "\n")
 
     def read_all(self) -> list[dict[str, Any]]:
         """Read all exported JSONL envelopes from exporter file path."""

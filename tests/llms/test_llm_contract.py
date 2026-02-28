@@ -1,25 +1,25 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncIterator
 from dataclasses import replace
-from typing import AsyncIterator
 
 import pytest
 from pydantic import BaseModel
 
-from afk.llms.config import LLMConfig
 from afk.llms import LLMBuilder, create_llm_client
+from afk.llms.config import LLMConfig
 from afk.llms.errors import (
-    LLMCapabilityError,
     LLMCancelledError,
+    LLMCapabilityError,
     LLMConfigurationError,
     LLMError,
     LLMInvalidResponseError,
     LLMSessionPausedError,
 )
-from afk.llms.providers.registry import LLMProviderError
 from afk.llms.llm import LLM
 from afk.llms.middleware import MiddlewareStack
+from afk.llms.providers.registry import LLMProviderError
 from afk.llms.types import (
     EmbeddingRequest,
     EmbeddingResponse,

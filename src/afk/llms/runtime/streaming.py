@@ -20,7 +20,6 @@ from ..errors import (
 )
 from ..types import LLMResponse, LLMStreamEvent, LLMStreamHandle, StreamCompletedEvent
 
-
 _STREAM_END = object()
 
 

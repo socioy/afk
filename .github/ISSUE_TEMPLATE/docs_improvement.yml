@@ -1,0 +1,38 @@
+name: Docs improvement
+description: Report missing/incorrect AFK documentation, examples, or migration guidance
+labels:
+  - documentation
+body:
+  - type: textarea
+    id: issue
+    attributes:
+      label: What is unclear, missing, or incorrect?
+      placeholder: The quickstart shows run_sync but does not explain event-loop constraints and when to use run(...).
+    validations:
+      required: true
+
+  - type: input
+    id: location
+    attributes:
+      label: Doc location
+      description: Link or file path(s)
+      placeholder: docs/library/core-runner.mdx
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested improvement
+      description: Proposed wording, snippet, or structure update.
+      render: markdown
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I checked docs and examples for an existing answer.
+          required: true

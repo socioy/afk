@@ -7,6 +7,7 @@ This module provides memory store adapters for the AFK memory subsystem.
 """
 
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 from .in_memory import InMemoryMemoryStore
@@ -39,5 +40,5 @@ else:
 
 if TYPE_CHECKING:
     # For type checking, import all store classes directly
-    from .redis import RedisMemoryStore
     from .postgres import PostgresMemoryStore
+    from .redis import RedisMemoryStore

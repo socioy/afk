@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from typing import AsyncIterator
 
 from ...agents.types import (
     AgentResult,
@@ -25,7 +25,6 @@ from ...tools.security import (
     SandboxProfileProvider,
     SecretScopeProvider,
 )
-
 
 _RUN_END = object()
 
@@ -104,9 +103,9 @@ class RunnerConfig:
     sanitize_tool_output: bool = True
     untrusted_tool_preamble: bool = True
     tool_output_max_chars: int = 12_000
-    default_sandbox_profile: "SandboxProfile | None" = None
-    sandbox_profile_provider: "SandboxProfileProvider | None" = None
-    secret_scope_provider: "SecretScopeProvider | None" = None
+    default_sandbox_profile: SandboxProfile | None = None
+    sandbox_profile_provider: SandboxProfileProvider | None = None
+    secret_scope_provider: SecretScopeProvider | None = None
     default_allowlisted_commands: tuple[str, ...] = (
         "ls",
         "cat",
@@ -126,7 +125,7 @@ class RunnerConfig:
     checkpoint_flush_timeout_s: float = 10.0
     checkpoint_coalesce_runtime_state: bool = True
     debug: bool = False
-    debug_config: "RunnerDebugConfig | None" = None
+    debug_config: RunnerDebugConfig | None = None
     background_tools_enabled: bool = True
     background_tool_default_grace_s: float = 0.0
     background_tool_max_pending: int = 256

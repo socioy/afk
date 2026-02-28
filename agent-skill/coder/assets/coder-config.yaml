@@ -1,0 +1,51 @@
+name: afk-coder
+mode: guided-development
+description: >
+  Teaches agentic coding tools how to build production-grade agents, tools,
+  and multi-agent systems using the AFK Python library. Provides complete API
+  coverage, design patterns, and runnable code examples.
+
+target_library: afk-py
+target_library_version: "0.1.0"
+python_version: ">=3.13"
+
+docs:
+  base_url: https://afk.arpan.sh
+  library_base: https://afk.arpan.sh/library
+  source_root: src/afk
+
+model_preferences:
+  - gpt-5.2-mini
+  - gpt-4.1-mini
+  - claude-sonnet-4-20250514
+
+principles:
+  - contract-first-design
+  - dx-first-defaults
+  - deterministic-execution
+  - fail-safe-by-default
+  - provider-portable
+  - composition-over-inheritance
+  - extensible-without-forking
+
+reference_files:
+  - agents-and-runner.md
+  - tools-system.md
+  - memory-and-state.md
+  - llm-configuration.md
+  - streaming-and-interaction.md
+  - security-and-policies.md
+  - multi-agent-and-delegation.md
+  - evals-and-testing.md
+  - cookbook-examples.md
+
+priority_reading_order:
+  - agents-and-runner.md
+  - tools-system.md
+  - cookbook-examples.md
+  - memory-and-state.md
+  - llm-configuration.md
+  - streaming-and-interaction.md
+  - security-and-policies.md
+  - multi-agent-and-delegation.md
+  - evals-and-testing.md

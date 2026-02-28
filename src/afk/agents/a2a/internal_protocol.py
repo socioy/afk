@@ -10,8 +10,9 @@ from __future__ import annotations
 
 import asyncio
 import time
+from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import AsyncIterator, Awaitable, Callable, Literal
+from typing import Literal
 
 from ...llms.types import JSONValue
 from ..contracts import (
@@ -150,6 +151,11 @@ class InternalA2AProtocol(AgentCommunicationProtocol):
         try:
             response = await self._dispatch(request)
         except asyncio.CancelledError:
+            async with self._lock:
+                self._tasks[request.correlation_id] = {
+                    **self._tasks.get(request.correlation_id, {}),
+                    "status": "cancelled",
+                }
             sink(
                 AgentProtocolEvent(
                     type="cancelled",
@@ -159,6 +165,12 @@ class InternalA2AProtocol(AgentCommunicationProtocol):
             )
             raise
         except Exception as exc:  # pragma: no cover - defensive branch
+            async with self._lock:
+                self._tasks[request.correlation_id] = {
+                    **self._tasks.get(request.correlation_id, {}),
+                    "status": "failed",
+                    "error": str(exc),
+                }
             sink(
                 AgentProtocolEvent(
                     type="nacked",

@@ -28,8 +28,8 @@ from ...agents.errors import (
     SubagentExecutionError,
     SubagentRoutingError,
 )
-from ...agents.policy.engine import PolicyDecision as RulePolicyDecision
 from ...agents.lifecycle.runtime import to_message_payload
+from ...agents.policy.engine import PolicyDecision as RulePolicyDecision
 from ...agents.types import (
     AgentRunEvent,
     AgentState,

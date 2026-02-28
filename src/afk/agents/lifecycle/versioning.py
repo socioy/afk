@@ -11,7 +11,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-
 AGENT_EVENT_SCHEMA_VERSION = "v1"
 CHECKPOINT_SCHEMA_VERSION = "v1"
 SUPPORTED_EVENT_SCHEMA_VERSIONS = frozenset({AGENT_EVENT_SCHEMA_VERSION})

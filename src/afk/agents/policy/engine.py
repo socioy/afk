@@ -8,9 +8,10 @@ Rule-based policy engine for agent/runtime controls.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from fnmatch import fnmatch
-from typing import Any, Iterable, Literal
+from typing import Any, Literal
 
 from ..types import (
     JSONValue,
@@ -19,7 +20,6 @@ from ..types import (
     PolicyEvent,
     json_value_from_tool_result,
 )
-
 
 PolicySubject = Literal["llm_call", "tool_call", "subagent_call", "interaction", "any"]
 

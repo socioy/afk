@@ -9,14 +9,14 @@ Debugger facade for runner and stream event inspection.
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import asdict
-from typing import Any, Callable
+from typing import Any
 
 from ..agents.types import AgentRunEvent, AgentRunHandle
 from ..core import Runner, RunnerConfig, RunnerDebugConfig
-from ..core.streaming import AgentStreamHandle, AgentStreamEvent
+from ..core.streaming import AgentStreamEvent, AgentStreamHandle
 from .types import DebuggerConfig
-
 
 _SECRET_KEY_MARKERS = (
     "api_key",

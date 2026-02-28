@@ -10,8 +10,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .base import LLMRouter
 from ..types import LLMRequest
+from .base import LLMRouter
 
 
 @dataclass(slots=True)

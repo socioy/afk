@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import importlib.util
 import os
 import time
-import importlib.util
 from contextlib import contextmanager
 
 import pytest
@@ -10,10 +10,10 @@ import pytest
 from afk.memory import (
     InMemoryMemoryStore,
     SQLiteMemoryStore,
-    create_memory_store_from_env,
     cosine_similarity,
-    now_ms,
+    create_memory_store_from_env,
     new_id,
+    now_ms,
 )
 from afk.memory.factory import _env_bool
 from afk.memory.utils import json_dumps, json_loads

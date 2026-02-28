@@ -11,7 +11,7 @@ from __future__ import annotations
 import asyncio
 import random
 import time
-from typing import Callable
+from collections.abc import Callable
 
 from ...agents.contracts import (
     AgentCommunicationProtocol,
@@ -58,7 +58,7 @@ class DelegationExecutor:
                 else:
                     async with asyncio.timeout(node.timeout_s):
                         response = await protocol.invoke(request)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 terminal_status = "timeout"
                 last_error = f"Delegation node '{node.node_id}' timed out after {node.timeout_s:.2f}s"
             except asyncio.CancelledError:
@@ -105,13 +105,16 @@ class DelegationExecutor:
             dead_letter_eligible
             and last_request is not None
             and hasattr(protocol, "record_dead_letter")
-            and callable(getattr(protocol, "record_dead_letter"))
+            and callable(protocol.record_dead_letter)
         ):
-            await getattr(protocol, "record_dead_letter")(
-                last_request,
-                error=last_error,
-                attempts=attempts,
-            )
+            try:
+                await protocol.record_dead_letter(
+                    last_request,
+                    error=last_error,
+                    attempts=attempts,
+                )
+            except Exception:
+                pass  # dead-letter recording must never mask the original failure
 
         finished_ms = int(time.time() * 1000)
         return DelegationNodeResult(

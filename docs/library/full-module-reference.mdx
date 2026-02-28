@@ -42,7 +42,9 @@ Agent definitions, lifecycle types, delegation, policy, A2A protocol, and error 
 | `afk.agents.a2a`        | `InternalA2AProtocol`, A2A auth providers (`AllowAllA2AAuthProvider`, `APIKeyA2AAuthProvider`, `JWTA2AAuthProvider`), `A2AServiceHost`, delivery stores.               |
 | `afk.agents.contracts`  | `AgentCommunicationProtocol`, `AgentInvocationRequest`, `AgentInvocationResponse`, `AgentDeadLetter`.                                                                  |
 | `afk.agents.prompts`    | `PromptStore`, prompt file resolution, template rendering.                                                                                                             |
-| `afk.agents.lifecycle`  | Checkpoint versioning, schema migration, runtime helpers.                                                                                                              |
+| `afk.agents.lifecycle`  | Checkpoint versioning, schema migration, runtime helpers (circuit breaker, effect journal, state snapshots).                                                            |
+| `afk.agents.skills`    | `SkillStore`, `SkillDoc`, SKILL.md parsing, checksum verification, and process-wide caching.                                                                           |
+| `afk.agents.security`  | Prompt-injection sanitization, untrusted tool-output redaction, and channel markers for trusted vs untrusted content.                                                   |
 | `afk.agents.errors`     | Full error hierarchy: `AgentError`, `AgentExecutionError`, `AgentCancelledError`, `SubagentRoutingError`, etc.                                                         |
 
 **Key imports:**
@@ -55,7 +57,7 @@ from afk.agents import JWTA2AAuthProvider, A2AServiceHost
 
 ## `afk.core`
 
-Runner execution engine, streaming, interaction providers, delegation engine, and telemetry sinks.
+Runner execution engine, streaming, interaction providers, and delegation engine.
 
 **Sub-modules:**
 
@@ -64,8 +66,7 @@ Runner execution engine, streaming, interaction providers, delegation engine, an
 | `afk.core.runner`      | `Runner` class with `run()`, `run_sync()`, `run_handle()`, `run_stream()`, `resume()`, `compact_thread()`. `RunnerConfig` for safety and behavior defaults. |
 | `afk.core.streaming`   | `AgentStreamHandle`, `AgentStreamEvent`, stream event constructors (`text_delta`, `tool_started`, `stream_completed`).                                      |
 | `afk.core.interaction` | `InteractionProvider` protocol, `HeadlessInteractionProvider`, `InMemoryInteractiveProvider`.                                                               |
-| `afk.core.runtime`     | `DelegationEngine`, `DelegationPlanner`, backpressure and graph error types.                                                                                |
-| `afk.core.telemetry`   | `TelemetrySink`, `TelemetryEvent`, `TelemetrySpan`.                                                                                                         |
+| `afk.core.runtime`     | `DelegationEngine`, `DelegationPlanner`, `DelegationScheduler`, backpressure and graph validation.                                                          |
 
 **Key imports:**
 
@@ -125,18 +126,28 @@ from afk.tools.security import SandboxProfile, SecretScopeProvider
 
 ## `afk.memory`
 
-Pluggable memory stores, compaction, and retention policies for thread state persistence.
+Pluggable memory stores, compaction, retention policies, long-term memory, vector search, and thread state persistence.
 
 **Sub-modules:**
 
-| Sub-module   | Responsibility                                                                                                          |
-| ------------ | ----------------------------------------------------------------------------------------------------------------------- |
-| `afk.memory` | `MemoryStore` protocol, `compact_thread_memory()`, `RetentionPolicy`, `StateRetentionPolicy`, `MemoryCompactionResult`. |
+| Sub-module              | Responsibility                                                                                                                |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `afk.memory.store`      | `MemoryStore` abstract base class, `MemoryCapabilities` declarations.                                                         |
+| `afk.memory.types`      | `MemoryEvent`, `LongTermMemory`, `JsonValue`, retention policy models.                                                        |
+| `afk.memory.lifecycle`  | `apply_event_retention()`, `apply_state_retention()`, `compact_thread_memory()`, `MemoryCompactionResult`.                    |
+| `afk.memory.vector`     | `cosine_similarity()`, vector scoring utilities for embedding-based search.                                                   |
+| `afk.memory.factory`    | `create_memory_store()` factory for environment-based backend selection.                                                      |
+| `afk.memory.adapters`   | Backend implementations: `InMemoryMemoryStore`, `SQLiteMemoryStore`, `PostgresMemoryStore`, `RedisMemoryStore`.               |
 
 **Key imports:**
 
 ```python
 from afk.memory import MemoryStore, RetentionPolicy, compact_thread_memory
+from afk.memory import InMemoryMemoryStore
+from afk.memory.adapters.sqlite import SQLiteMemoryStore
+from afk.memory.adapters.postgres import PostgresMemoryStore
+from afk.memory.adapters.redis import RedisMemoryStore
+from afk.memory.types import MemoryEvent, LongTermMemory
 ```
 
 ## `afk.queues`
@@ -221,4 +232,22 @@ Model Context Protocol server implementation, tool store, and server registratio
 
 ```python
 from afk.mcp import get_mcp_store
+```
+
+## `afk.messaging`
+
+Internal agent-to-agent messaging primitives with delivery guarantees.
+
+**Sub-modules:**
+
+| Sub-module               | Responsibility                                                                           |
+| ------------------------ | ---------------------------------------------------------------------------------------- |
+| `afk.messaging.bus`      | `MessageBus` protocol for pub/sub messaging between agents.                              |
+| `afk.messaging.delivery` | Delivery tracking, acknowledgment, and retry for inter-agent messages.                   |
+| `afk.messaging.types`    | `AgentMessage`, `MessageEnvelope`, delivery status types.                                |
+
+**Key imports:**
+
+```python
+from afk.messaging import MessageBus, AgentMessage
 ```

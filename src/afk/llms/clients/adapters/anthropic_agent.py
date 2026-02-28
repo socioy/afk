@@ -11,13 +11,12 @@ SDK messages/events to AFK's provider-agnostic LLM response and stream types.
 
 from __future__ import annotations
 
-
 import json
-from typing import Any, AsyncIterator, Iterable
+from collections.abc import AsyncIterator, Iterable
+from typing import Any
 
 from pydantic import BaseModel
 
-from ..shared.normalization import get_attr, get_attr_str, to_jsonable, to_plain_dict
 from ...errors import LLMCapabilityError, LLMConfigurationError
 from ...llm import LLM
 from ...types import (
@@ -36,6 +35,7 @@ from ...types import (
     ToolCall,
     Usage,
 )
+from ..shared.normalization import get_attr, get_attr_str, to_jsonable, to_plain_dict
 
 
 class AnthropicAgentClient(LLM):

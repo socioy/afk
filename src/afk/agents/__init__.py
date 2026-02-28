@@ -6,19 +6,17 @@ See LICENSE file for full license text.
 AFK agent public API.
 """
 
-from .core.base import Agent, BaseAgent
-from .core.chat import ChatAgent
 from .a2a import (
-    A2AAuthorizationDecision,
-    A2AAuthorizationError,
     A2AAuthContext,
     A2AAuthError,
+    A2AAuthorizationDecision,
+    A2AAuthorizationError,
     A2AAuthProvider,
     A2APrincipal,
     A2AServiceHost,
     A2AServiceHostError,
-    APIKeyA2AAuthProvider,
     AllowAllA2AAuthProvider,
+    APIKeyA2AAuthProvider,
     GoogleA2AAdapterError,
     GoogleA2AProtocolAdapter,
     InMemoryA2ADeliveryStore,
@@ -34,6 +32,8 @@ from .contracts import (
     AgentInvocationResponse,
     AgentProtocolEvent,
 )
+from .core.base import Agent, BaseAgent
+from .core.chat import ChatAgent
 from .delegation import (
     DelegationEdge,
     DelegationFinalStatus,
@@ -44,27 +44,6 @@ from .delegation import (
     DelegationResult,
     JoinPolicy,
     RetryPolicy,
-)
-from .policy.engine import (
-    PolicyEngine,
-    PolicyEvaluation,
-    PolicyRule,
-    PolicyRuleCondition,
-    PolicySubject,
-    infer_policy_subject,
-    normalize_policy_payload,
-)
-from .lifecycle.versioning import (
-    AGENT_EVENT_SCHEMA_VERSION,
-    CHECKPOINT_SCHEMA_VERSION,
-    SUPPORTED_CHECKPOINT_SCHEMA_VERSIONS,
-    SUPPORTED_EVENT_SCHEMA_VERSIONS,
-    MigrationResult,
-    VersionCheckResult,
-    check_checkpoint_schema_version,
-    check_event_schema_version,
-    migrate_checkpoint_record,
-    migrate_event_record,
 )
 from .errors import (
     AgentBudgetExceededError,
@@ -86,6 +65,27 @@ from .errors import (
     SkillResolutionError,
     SubagentExecutionError,
     SubagentRoutingError,
+)
+from .lifecycle.versioning import (
+    AGENT_EVENT_SCHEMA_VERSION,
+    CHECKPOINT_SCHEMA_VERSION,
+    SUPPORTED_CHECKPOINT_SCHEMA_VERSIONS,
+    SUPPORTED_EVENT_SCHEMA_VERSIONS,
+    MigrationResult,
+    VersionCheckResult,
+    check_checkpoint_schema_version,
+    check_event_schema_version,
+    migrate_checkpoint_record,
+    migrate_event_record,
+)
+from .policy.engine import (
+    PolicyEngine,
+    PolicyEvaluation,
+    PolicyRule,
+    PolicyRuleCondition,
+    PolicySubject,
+    infer_policy_subject,
+    normalize_policy_payload,
 )
 from .prompts.store import (
     PromptStore,

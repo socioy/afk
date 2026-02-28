@@ -17,8 +17,8 @@ from ...llms.types import JSONValue
 from ..contracts import AgentCommunicationProtocol, AgentInvocationRequest
 from .auth import (
     A2AAuthContext,
-    A2AAuthProvider,
     A2AAuthError,
+    A2AAuthProvider,
 )
 
 

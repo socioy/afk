@@ -9,9 +9,9 @@ It also supports registry-level middlewares via @registry_middleware.
 
 from __future__ import annotations
 
-
 import inspect
-from typing import Any, Callable, Optional, Type, TypeVar
+from collections.abc import Callable
+from typing import Any, TypeVar
 
 from pydantic import BaseModel
 
@@ -28,7 +28,6 @@ from afk.tools.core.base import (
 # (Avoid importing ToolRegistry here to prevent heavy imports.)
 from afk.tools.registry import RegistryMiddleware, RegistryMiddlewareFn  # noqa: E402
 
-
 ArgsT = TypeVar("ArgsT", bound=BaseModel)
 ReturnT = TypeVar("ReturnT")
 
@@ -41,13 +40,13 @@ def _default_description(fn: Callable[..., Any], fallback: str) -> str:
 
 def tool(
     *,
-    args_model: Type[ArgsT],
+    args_model: type[ArgsT],
     name: str | None = None,
     description: str | None = None,
     timeout: float | None = None,
-    prehooks: Optional[list[PreHook[Any, Any]]] = None,
-    posthooks: Optional[list[PostHook]] = None,
-    middlewares: Optional[list[Middleware[Any, Any]]] = None,
+    prehooks: list[PreHook[Any, Any]] | None = None,
+    posthooks: list[PostHook] | None = None,
+    middlewares: list[Middleware[Any, Any]] | None = None,
     raise_on_error: bool = False,
 ) -> Callable[[ToolFn], Tool[ArgsT, ReturnT]]:
     """
@@ -91,7 +90,7 @@ def tool(
 
 def prehook(
     *,
-    args_model: Type[ArgsT],
+    args_model: type[ArgsT],
     name: str | None = None,
     description: str | None = None,
     timeout: float | None = None,
@@ -123,7 +122,7 @@ def prehook(
 
 def posthook(
     *,
-    args_model: Type[ArgsT],
+    args_model: type[ArgsT],
     name: str | None = None,
     description: str | None = None,
     timeout: float | None = None,
@@ -212,13 +211,9 @@ def registry_middleware(
         )
         # RegistryMiddleware currently doesn't store description; keep it attached for debugging/introspection
         if description:
-            setattr(mw, "description", description)
+            mw.description = description
         else:
-            setattr(
-                mw,
-                "description",
-                _default_description(fn, getattr(mw, "name", "registry_middleware")),
-            )
+            mw.description = _default_description(fn, getattr(mw, "name", "registry_middleware"))
         return mw
 
     return decorator

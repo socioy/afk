@@ -8,10 +8,9 @@ This module defines abstract interfaces and shared capabilities for memory store
 
 from __future__ import annotations
 
-
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Optional, Sequence
 
 from afk.memory.types import JsonValue, LongTermMemory, MemoryEvent
 
@@ -49,7 +48,7 @@ class MemoryStore(ABC):
         """Release backend resources."""
         self._is_setup = False
 
-    async def __aenter__(self) -> "MemoryStore":
+    async def __aenter__(self) -> MemoryStore:
         """Set up and return the store for use as an async context manager."""
         await self.setup()
         return self
@@ -87,7 +86,7 @@ class MemoryStore(ABC):
         """Set a state value for a thread-scoped key."""
 
     @abstractmethod
-    async def get_state(self, thread_id: str, key: str) -> Optional[JsonValue]:
+    async def get_state(self, thread_id: str, key: str) -> JsonValue | None:
         """Return state value for a thread-scoped key."""
 
     @abstractmethod
@@ -101,20 +100,20 @@ class MemoryStore(ABC):
         self,
         memory: LongTermMemory,
         *,
-        embedding: Optional[Sequence[float]] = None,
+        embedding: Sequence[float] | None = None,
     ) -> None:
         """Insert or update one long-term memory record."""
 
     @abstractmethod
     async def delete_long_term_memory(
-        self, user_id: Optional[str], memory_id: str
+        self, user_id: str | None, memory_id: str
     ) -> None:
         """Delete one long-term memory record."""
 
     @abstractmethod
     async def list_long_term_memories(
         self,
-        user_id: Optional[str],
+        user_id: str | None,
         *,
         scope: str | None = None,
         limit: int = 100,
@@ -124,7 +123,7 @@ class MemoryStore(ABC):
     @abstractmethod
     async def search_long_term_memory_text(
         self,
-        user_id: Optional[str],
+        user_id: str | None,
         query: str,
         *,
         scope: str | None = None,
@@ -135,7 +134,7 @@ class MemoryStore(ABC):
     @abstractmethod
     async def search_long_term_memory_vector(
         self,
-        user_id: Optional[str],
+        user_id: str | None,
         query_embedding: Sequence[float],
         *,
         scope: str | None = None,

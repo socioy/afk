@@ -18,6 +18,9 @@ organized in sub-modules:
 
 from __future__ import annotations
 
+# Re-export the JSONValue alias so existing `from .types import JSONValue` works
+from ...llms.types import JSONValue
+
 # --- Common literal types ---
 from .common import (
     AgentEventType,
@@ -27,36 +30,6 @@ from .common import (
     InteractionMode,
     PolicyAction,
     SubagentParallelismMode,
-)
-
-# --- Result & execution record types ---
-from .result import (
-    AgentResult,
-    CommandExecutionRecord,
-    SkillReadRecord,
-    SubagentExecutionRecord,
-    ToolExecutionRecord,
-    UsageAggregate,
-    json_value_from_tool_result,
-    tool_record_from_result,
-)
-
-# --- Policy & event types ---
-from .policy import (
-    AgentRunEvent,
-    FailSafeConfig,
-    PolicyDecision,
-    PolicyEvent,
-)
-
-# --- Interaction types ---
-from .interaction import (
-    AgentRunHandle,
-    ApprovalDecision,
-    ApprovalRequest,
-    DeferredDecision,
-    UserInputDecision,
-    UserInputRequest,
 )
 
 # --- Config & routing types ---
@@ -72,6 +45,24 @@ from .config import (
     ToolLike,
 )
 
+# --- Interaction types ---
+from .interaction import (
+    AgentRunHandle,
+    ApprovalDecision,
+    ApprovalRequest,
+    DeferredDecision,
+    UserInputDecision,
+    UserInputRequest,
+)
+
+# --- Policy & event types ---
+from .policy import (
+    AgentRunEvent,
+    FailSafeConfig,
+    PolicyDecision,
+    PolicyEvent,
+)
+
 # --- Protocol interfaces ---
 from .protocols import (
     InstructionRole,
@@ -79,8 +70,17 @@ from .protocols import (
     SubagentRouter,
 )
 
-# Re-export the JSONValue alias so existing `from .types import JSONValue` works
-from ...llms.types import JSONValue
+# --- Result & execution record types ---
+from .result import (
+    AgentResult,
+    CommandExecutionRecord,
+    SkillReadRecord,
+    SubagentExecutionRecord,
+    ToolExecutionRecord,
+    UsageAggregate,
+    json_value_from_tool_result,
+    tool_record_from_result,
+)
 
 __all__ = [
     # Common

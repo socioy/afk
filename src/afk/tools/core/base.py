@@ -8,23 +8,17 @@ This module defines the types and base classes for tools that can be registered 
 
 from __future__ import annotations
 
-
 import asyncio
 import functools
 import inspect
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import (
     Any,
-    Awaitable,
-    Callable,
-    Dict,
     Generic,
-    List,
-    Optional,
-    Type,
+    Literal,
     TypeVar,
     Union,
-    Literal,
 )
 
 from pydantic import BaseModel, ValidationError
@@ -34,7 +28,6 @@ from afk.tools.core.errors import (
     ToolTimeoutError,
     ToolValidationError,
 )
-
 
 ArgsT = TypeVar("ArgsT", bound=BaseModel)
 ReturnT = TypeVar("ReturnT")
@@ -52,7 +45,7 @@ class ToolSpec:
 
     name: str
     description: str
-    parameters_schema: Dict[str, Any]  # JSON Schema for the tool's arguments
+    parameters_schema: dict[str, Any]  # JSON Schema for the tool's arguments
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,7 +57,7 @@ class ToolContext:
 
     request_id: str | None = None
     user_id: str | None = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,12 +84,12 @@ class ToolResult(Generic[ReturnT]):
     which allows for easier chaining and error handling.
     """
 
-    output: Optional[ReturnT] = None
+    output: ReturnT | None = None
     success: bool = True
-    error_message: Optional[str] = None
-    tool_name: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    tool_call_id: Optional[str] = None
+    error_message: str | None = None
+    tool_name: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+    tool_call_id: str | None = None
     deferred: ToolDeferredHandle | None = None
 
 
@@ -219,8 +212,8 @@ class BaseTool(Generic[ArgsT, ReturnT]):
         *,
         spec: ToolSpec,
         fn: ToolFn,
-        args_model: Type[ArgsT],
-        default_timeout: Optional[float] = None,
+        args_model: type[ArgsT],
+        default_timeout: float | None = None,
         raise_on_error: bool = False,
     ) -> None:
         self.spec = spec
@@ -232,7 +225,7 @@ class BaseTool(Generic[ArgsT, ReturnT]):
 
         self._call_style = _infer_call_style(fn)
 
-    def validate(self, raw_args: Dict[str, Any]) -> ArgsT:
+    def validate(self, raw_args: dict[str, Any]) -> ArgsT:
         try:
             return self.args_model.model_validate(raw_args)
         except ValidationError as e:
@@ -249,11 +242,11 @@ class BaseTool(Generic[ArgsT, ReturnT]):
 
     async def call(
         self,
-        raw_args: Dict[str, Any],
+        raw_args: dict[str, Any],
         *,
-        ctx: Optional[ToolContext] = None,
-        timeout: Optional[float] = None,
-        tool_call_id: Optional[str] = None,
+        ctx: ToolContext | None = None,
+        timeout: float | None = None,
+        tool_call_id: str | None = None,
     ) -> ToolResult[ReturnT]:
         ctx = ctx or ToolContext()
 
@@ -300,7 +293,7 @@ class BaseTool(Generic[ArgsT, ReturnT]):
                 tool_call_id=tool_call_id,
             )
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             err = ToolTimeoutError(
                 f"Tool '{self.spec.name}' execution exceeded timeout of {effective_timeout} seconds."
             )
@@ -357,7 +350,7 @@ class Middleware(Generic[ArgsT, ReturnT]):
     """
 
     def __init__(
-        self, *, spec: ToolSpec, fn: ToolFn, default_timeout: Optional[float] = None
+        self, *, spec: ToolSpec, fn: ToolFn, default_timeout: float | None = None
     ) -> None:
         self.spec = spec
         self._original_fn = fn
@@ -371,7 +364,7 @@ class Middleware(Generic[ArgsT, ReturnT]):
         args: ArgsT,
         ctx: ToolContext,
         *,
-        timeout: Optional[float] = None,
+        timeout: float | None = None,
     ) -> ReturnT:
         async def _run() -> ReturnT:
             if self._mw_style == "next_args":
@@ -388,7 +381,7 @@ class Middleware(Generic[ArgsT, ReturnT]):
             if effective_timeout is not None:
                 return await asyncio.wait_for(_run(), timeout=effective_timeout)
             return await _run()
-        except asyncio.TimeoutError as e:
+        except TimeoutError as e:
             raise ToolTimeoutError(
                 f"Middleware '{self.spec.name}' exceeded timeout of {effective_timeout} seconds."
             ) from e
@@ -404,11 +397,11 @@ class Tool(BaseTool[ArgsT, ReturnT]):
         *,
         spec: ToolSpec,
         fn: ToolFn,
-        args_model: Type[ArgsT],
-        default_timeout: Optional[float] = None,
-        prehooks: Optional[List[PreHook[Any, Any]]] = None,
-        posthooks: Optional[List[PostHook]] = None,
-        middlewares: Optional[List[Middleware[ArgsT, ReturnT]]] = None,
+        args_model: type[ArgsT],
+        default_timeout: float | None = None,
+        prehooks: list[PreHook[Any, Any]] | None = None,
+        posthooks: list[PostHook] | None = None,
+        middlewares: list[Middleware[ArgsT, ReturnT]] | None = None,
         raise_on_error: bool = False,
     ) -> None:
         super().__init__(
@@ -424,11 +417,11 @@ class Tool(BaseTool[ArgsT, ReturnT]):
 
     async def call(
         self,
-        raw_args: Dict[str, Any],
+        raw_args: dict[str, Any],
         *,
-        ctx: Optional[ToolContext] = None,
-        timeout: Optional[float] = None,
-        tool_call_id: Optional[str] = None,
+        ctx: ToolContext | None = None,
+        timeout: float | None = None,
+        tool_call_id: str | None = None,
     ) -> ToolResult[ReturnT]:
         ctx = ctx or ToolContext()
 
@@ -521,7 +514,7 @@ class Tool(BaseTool[ArgsT, ReturnT]):
             else:
                 output = await run_tool()
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             err = ToolTimeoutError(
                 f"Tool '{self.spec.name}' execution exceeded timeout of {effective_timeout} seconds."
             )
@@ -560,7 +553,7 @@ class Tool(BaseTool[ArgsT, ReturnT]):
 
         # 5) Run posthooks
         # Posthooks get a dict payload by convention: {"output": ..., "tool_name": ...}
-        post_payload: Dict[str, Any] = {"output": output, "tool_name": self.spec.name}
+        post_payload: dict[str, Any] = {"output": output, "tool_name": self.spec.name}
         post_result: Any = output
 
         for post in self.posthooks:

@@ -1,0 +1,136 @@
+name: Bug report
+description: Report a reproducible AFK SDK bug in runtime, tools, memory, or integrations
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting this. Please provide a minimal reproducible example.
+        Bugs with a clear repro and traceback are fixed much faster.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Clear description of the current behavior.
+      placeholder: Runner.run_sync fails with RuntimeError in a plain CLI script...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+      placeholder: The run should complete and return an AgentResult.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproducible example
+      description: Paste the smallest script/snippet that reproduces the issue.
+      render: python
+      placeholder: |
+        from afk.agents import Agent
+        from afk.core import Runner
+
+        agent = Agent(name="demo", model="ollama_chat/gemma3:4b", instructions="...")
+        runner = Runner()
+        print(runner.run_sync(agent, user_message="hello").final_text)
+    validations:
+      required: true
+
+  - type: textarea
+    id: traceback
+    attributes:
+      label: Traceback or logs
+      description: Include full traceback/logs if available.
+      render: text
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Impacted area
+      options:
+        - Core Runner lifecycle
+        - LLM client/providers
+        - Tool registry / tool execution
+        - Background tools
+        - Debugger / observability
+        - Memory backend (SQLite/Redis/Postgres)
+        - Queues / worker contracts
+        - MCP integration
+        - Docs / examples
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Execution mode
+      options:
+        - run_sync (sync CLI)
+        - run (async)
+        - run_stream / streaming
+        - Queue worker execution
+        - Not applicable
+    validations:
+      required: true
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Relevant configuration
+      description: Agent/Runner/FailSafe/tool settings, env vars, provider model names, etc.
+      render: yaml
+    validations:
+      required: false
+
+  - type: input
+    id: os
+    attributes:
+      label: OS
+      placeholder: macOS / Linux / Windows
+    validations:
+      required: true
+
+  - type: input
+    id: python
+    attributes:
+      label: Python version
+      placeholder: 3.13.x
+    validations:
+      required: true
+
+  - type: input
+    id: afk
+    attributes:
+      label: AFK SDK version
+      placeholder: 1.0.0
+    validations:
+      required: true
+
+  - type: input
+    id: provider
+    attributes:
+      label: LLM provider/model (if applicable)
+      placeholder: openai/gpt-4.1-mini, ollama_chat/gemma3:4b, litellm/...
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched existing issues and did not find a duplicate.
+          required: true
+        - label: I can reproduce this on the latest main branch.
+          required: false
+        - label: I included a minimal repro and environment details.
+          required: true

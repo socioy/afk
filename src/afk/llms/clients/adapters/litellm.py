@@ -12,6 +12,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from ...errors import LLMConfigurationError
+from ...types import Message
 from ..base.responses import ResponsesClientBase
 from ..shared import (
     collect_headers,
@@ -20,8 +22,6 @@ from ..shared import (
     to_input_text_part,
     tool_result_label,
 )
-from ...errors import LLMConfigurationError
-from ...types import Message
 
 
 class LiteLLMClient(ResponsesClientBase):

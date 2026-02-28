@@ -4,10 +4,10 @@ import asyncio
 
 from afk.queues import (
     JOB_DISPATCH_CONTRACT,
-    RetryPolicy,
     RUNNER_CHAT_CONTRACT,
     ExecutionContractContext,
     InMemoryTaskQueue,
+    RetryPolicy,
     TaskItem,
     TaskWorker,
     WorkerMetrics,

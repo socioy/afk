@@ -8,7 +8,6 @@ Shared client-side normalization helpers used across LLM adapters.
 
 from __future__ import annotations
 
-
 from dataclasses import asdict, is_dataclass
 from typing import Any
 

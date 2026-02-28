@@ -8,13 +8,14 @@ This module provides a Redis memory backend optimized for low-latency state and 
 
 from __future__ import annotations
 
-
-from typing import Optional, Sequence, cast
+from collections.abc import Sequence
+from typing import cast
 
 import numpy as np
 from redis.asyncio import Redis
 from redis.exceptions import WatchError
 
+from afk.memory.store import MemoryCapabilities, MemoryStore
 from afk.memory.types import (
     JsonObject,
     JsonValue,
@@ -23,7 +24,6 @@ from afk.memory.types import (
 )
 from afk.memory.utils import json_dumps, json_loads
 from afk.memory.vector import cosine_similarity
-from afk.memory.store import MemoryCapabilities, MemoryStore
 
 
 class RedisMemoryStore(MemoryStore):
@@ -177,7 +177,7 @@ class RedisMemoryStore(MemoryStore):
         self,
         memory: LongTermMemory,
         *,
-        embedding: Optional[Sequence[float]] = None,
+        embedding: Sequence[float] | None = None,
     ) -> None:
         """Atomically insert or update a long-term memory in Redis.
 
@@ -341,7 +341,7 @@ class RedisMemoryStore(MemoryStore):
         return MemoryEvent(
             id=cast(str, payload["id"]),
             thread_id=cast(str, payload["thread_id"]),
-            user_id=cast(Optional[str], payload.get("user_id")),
+            user_id=cast(str | None, payload.get("user_id")),
             type=cast(str, payload["type"]),
             timestamp=int(cast(int, payload["timestamp"])),
             payload=cast(JsonObject, payload["payload"]),
@@ -352,10 +352,10 @@ class RedisMemoryStore(MemoryStore):
     def _payload_to_memory(payload: dict[str, object]) -> LongTermMemory:
         return LongTermMemory(
             id=cast(str, payload["id"]),
-            user_id=cast(Optional[str], payload.get("user_id")),
+            user_id=cast(str | None, payload.get("user_id")),
             scope=cast(str, payload["scope"]),
             data=cast(JsonObject, payload["data"]),
-            text=cast(Optional[str], payload.get("text")),
+            text=cast(str | None, payload.get("text")),
             tags=cast(list[str], payload.get("tags", [])),
             metadata=cast(JsonObject, payload.get("metadata", {})),
             created_at=int(cast(int, payload.get("created_at", 0))),

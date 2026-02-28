@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import AsyncIterator
 
 import pytest
 from pydantic import BaseModel
 
 from afk.agents import Agent
-from afk.agents.policy import PolicyEngine, PolicyRule, PolicyRuleCondition
 from afk.agents.errors import (
     AgentBudgetExceededError,
     AgentCheckpointCorruptionError,
@@ -17,8 +16,9 @@ from afk.agents.errors import (
     AgentInterruptedError,
     SkillResolutionError,
 )
-from afk.agents.model.resolution import resolve_model_to_llm
 from afk.agents.lifecycle.runtime import effect_state_key, json_hash
+from afk.agents.model.resolution import resolve_model_to_llm
+from afk.agents.policy import PolicyEngine, PolicyRule, PolicyRuleCondition
 from afk.agents.types import (
     AgentRunEvent,
     ApprovalDecision,
@@ -32,7 +32,6 @@ from afk.agents.types import (
     UserInputRequest,
 )
 from afk.core.runner import Runner, RunnerConfig
-from afk.observability.backends import InMemoryTelemetrySink
 from afk.evals import EvalCase, arun_case
 from afk.llms import LLM
 from afk.llms.types import (
@@ -47,6 +46,7 @@ from afk.llms.types import (
     ToolCall,
 )
 from afk.memory import InMemoryMemoryStore, StateRetentionPolicy
+from afk.observability.backends import InMemoryTelemetrySink
 from afk.tools import SandboxProfile, tool
 
 
@@ -1404,8 +1404,8 @@ def test_runtime_output_limit_middleware_truncates_tool_output():
 
 
 def test_runner_loads_and_executes_external_mcp_tools(monkeypatch):
-    from afk.mcp import MCPStore
     import afk.core.runner.execution as runner_execution
+    from afk.mcp import MCPStore
 
     class _MCPToolLLM(LLM):
         def __init__(self) -> None:

@@ -1,0 +1,82 @@
+name: PR Release Note Check
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  release-note:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Validate PR release note and scope
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          python - <<'PY'
+          import os
+          import re
+          import sys
+
+
+          def extract_section(markdown: str, heading_pattern: str) -> str | None:
+              heading_re = re.compile(heading_pattern, re.IGNORECASE | re.MULTILINE)
+              heading_match = heading_re.search(markdown)
+              if not heading_match:
+                  return None
+
+              tail = markdown[heading_match.end():]
+              next_heading = re.search(r"(?m)^##\s+", tail)
+              return tail[: next_heading.start()] if next_heading else tail
+
+
+          body = os.getenv("PR_BODY") or ""
+          if not body.strip():
+              print("PR body is empty. Fill out the PR template, including Scope and Release Note.")
+              sys.exit(1)
+
+          scope_section = extract_section(body, r"^##\s+Scope\s*$")
+          if scope_section is None:
+              print("Missing '## Scope' section in PR body.")
+              sys.exit(1)
+
+          if not re.search(r"(?m)^\s*-\s*\[[xX]\]\s+", scope_section):
+              print("Select at least one checked checkbox under '## Scope'.")
+              sys.exit(1)
+
+          section = extract_section(
+              body,
+              r"^##\s+Release\s+Note\s*\(for\s+`?CHANGELOG\.md`?\)\s*$",
+          )
+          if section is None:
+              print("Missing '## Release Note (for `CHANGELOG.md`)' section in PR body.")
+              sys.exit(1)
+
+          if re.search(r"(?i)no\s+user-visible\s+change", section):
+              print("PR template checks passed (scope selected + explicit no user-visible change).")
+              sys.exit(0)
+
+          if re.search(r"(?m)^\s*-\s*\.\.\.\s*$", section):
+              print("Release note still contains placeholder '- ...'. Replace it with a real entry.")
+              sys.exit(1)
+
+          meaningful_bullet = False
+          for line in section.splitlines():
+              stripped = line.strip()
+              if not stripped.startswith("- "):
+                  continue
+              if stripped.startswith("- Section:") or stripped.startswith("- Entry:"):
+                  continue
+              if stripped == "- ...":
+                  continue
+              meaningful_bullet = True
+              break
+
+          if not meaningful_bullet:
+              print(
+                  "Release note section must include a changelog bullet or 'No user-visible change'."
+              )
+              sys.exit(1)
+
+          print("PR template checks passed (scope selected + release note provided).")
+          PY

@@ -61,7 +61,7 @@ class InMemoryTaskQueue(BaseTaskQueue):
             return None
         try:
             return await asyncio.wait_for(self._queue.get(), timeout=timeout)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return None
 
     async def list_tasks(

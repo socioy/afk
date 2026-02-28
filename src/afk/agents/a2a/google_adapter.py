@@ -9,7 +9,8 @@ Google A2A SDK adapter implementing AFK agent communication protocol.
 from __future__ import annotations
 
 import inspect
-from typing import Any, AsyncIterator, Callable
+from collections.abc import AsyncIterator, Callable
+from typing import Any
 
 from ..contracts import (
     AgentCommunicationProtocol,

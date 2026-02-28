@@ -5,8 +5,8 @@ See LICENSE file for full license text.
 """
 
 from __future__ import annotations
-import os
 
+import os
 from dataclasses import dataclass
 
 
@@ -33,7 +33,7 @@ class LLMConfig:
     api_key: str | None = None
 
     @staticmethod
-    def from_env() -> "LLMConfig":
+    def from_env() -> LLMConfig:
         """Load legacy adapter defaults from environment variables."""
         return LLMConfig(
             default_model=os.getenv("AFK_LLM_MODEL", "gpt-4.1-mini"),

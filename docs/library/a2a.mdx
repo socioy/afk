@@ -40,9 +40,7 @@ flowchart LR
 <Steps>
   <Step title="Client builds invocation request">
     ```python
-    from afk.a2a import A2AClient, AgentInvocationRequest
-
-    client = A2AClient(base_url="https://agent-b.example.com", auth_token="...")
+    from afk.agents.contracts import AgentInvocationRequest
 
     request = AgentInvocationRequest(
         target_agent="analyzer",
@@ -100,7 +98,8 @@ flowchart LR
 Expose your agents as an A2A-accessible service:
 
 ```python
-from afk.a2a import A2AServer, TokenAuthProvider
+from afk.agents.a2a import A2AServiceHost
+from afk.agents.a2a.auth import APIKeyA2AAuthProvider
 from afk.agents import Agent
 from afk.core import Runner
 
@@ -108,13 +107,13 @@ from afk.core import Runner
 analyzer = Agent(name="analyzer", model="gpt-5.2-mini", instructions="Analyze data.")
 
 # Create auth provider
-auth = TokenAuthProvider(
-    valid_tokens={"system-a": "token-abc", "system-c": "token-xyz"},
-    allowed_agents={"system-a": ["analyzer"], "system-c": ["analyzer"]},
+auth = APIKeyA2AAuthProvider(
+    keys={"system-a": "token-abc", "system-c": "token-xyz"},
+    server_secret="hmac-secret-for-key-hashing",
 )
 
 # Start the server
-server = A2AServer(
+server = A2AServiceHost(
     agents={"analyzer": analyzer},
     runner_factory=lambda: Runner(),
     auth_provider=auth,
@@ -123,6 +122,66 @@ server = A2AServer(
 )
 await server.start()
 ```
+
+## Authentication providers
+
+AFK ships with three auth providers:
+
+<Tabs>
+  <Tab title="AllowAll (dev only)">
+    Permits all requests without authentication. **Never use in production.**
+
+    ```python
+    from afk.agents.a2a.auth import AllowAllA2AAuthProvider
+
+    auth = AllowAllA2AAuthProvider()
+    ```
+
+  </Tab>
+  <Tab title="API Key">
+    Validates requests against pre-shared API keys with HMAC-SHA256 hashing.
+
+    ```python
+    from afk.agents.a2a.auth import APIKeyA2AAuthProvider
+
+    auth = APIKeyA2AAuthProvider(
+        keys={"caller-id": "secret-key"},
+        server_secret="hmac-server-secret",
+    )
+    ```
+
+  </Tab>
+  <Tab title="JWT">
+    Validates JWT tokens with configurable issuer and audience claims.
+
+    ```python
+    from afk.agents.a2a.auth import JWTA2AAuthProvider
+
+    auth = JWTA2AAuthProvider(
+        secret="jwt-signing-secret",
+        algorithm="HS256",
+        issuer="https://auth.example.com",
+        audience="agent-service",
+    )
+    ```
+
+  </Tab>
+</Tabs>
+
+### Google A2A adapter
+
+For interoperability with Google's A2A protocol, use the Google adapter:
+
+```python
+from afk.agents.a2a.google_adapter import GoogleA2AAdapter
+
+adapter = GoogleA2AAdapter(
+    protocol=internal_protocol,
+    auth_provider=auth,
+)
+```
+
+The adapter normalizes Google A2A envelope formats to AFK's internal protocol types.
 
 ## Security considerations
 

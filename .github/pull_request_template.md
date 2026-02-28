@@ -1,31 +1,68 @@
-## Description
+## Summary
 
-Please include a summary of the change and which issue is fixed. Please also include relevant motivation and context. List any dependencies that are required for this change.
+Describe what changed and why.
 
-Fixes # (issue)
+Fixes #
 
-## Type of change
+## Change Type
 
-Please delete options that are not relevant.
-
-- [ ] Bug fix (non-breaking change which fixes an issue)
-- [ ] New feature (non-breaking change which adds functionality)
-- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
+- [ ] Bug fix
+- [ ] Feature
+- [ ] Refactor / internal improvement
 - [ ] Documentation update
+- [ ] Breaking change
 
-## How Has This Been Tested?
+## Scope
 
-Please describe the tests that you ran to verify your changes. Provide instructions so we can reproduce. Please also list any relevant details for your test configuration
+Which AFK subsystems are affected?
 
-- [ ] Test A
-- [ ] Test B
+- [ ] Core Runner lifecycle
+- [ ] LLM client/providers
+- [ ] Tool registry / tool execution
+- [ ] Background tools
+- [ ] Debugger / observability
+- [ ] Memory backend(s)
+- [ ] Queues / worker contracts
+- [ ] MCP integration
+- [ ] Docs / examples
 
-## Checklist:
+## Behavioral Notes
 
-- [ ] My code follows the style guidelines of this project
-- [ ] I have performed a self-review of my own code
-- [ ] I have commented my code, particularly in hard-to-understand areas
-- [ ] I have made corresponding changes to the documentation
-- [ ] My changes generate no new warnings
-- [ ] I have added tests that prove my fix is effective or that my feature works
-- [ ] New and existing unit tests pass locally with my changes
+List any behavioral or API changes, including migration notes.
+
+## Release Note (for `CHANGELOG.md`)
+
+Add a changelog-ready note for `[Unreleased]` (Keep a Changelog):
+
+- Section: `Added` | `Changed` | `Fixed` | `Deprecated` | `Removed` | `Security`
+- Entry:
+
+```markdown
+- ...
+```
+
+If no changelog entry is needed, write: `No user-visible change`.
+
+## Validation
+
+Commands run locally:
+
+```bash
+uvx ruff check src tests
+PYTHONPATH=src pytest -q
+```
+
+Additional targeted tests (if any):
+
+```bash
+# e.g. PYTHONPATH=src pytest -q tests/agents/test_background_tools.py
+```
+
+## Checklist
+
+- [ ] I scoped this PR to one coherent concern.
+- [ ] I added/updated tests for behavior changes.
+- [ ] I updated docs/examples when user-facing behavior changed.
+- [ ] I added a changelog-ready release note (or stated why not needed).
+- [ ] I reviewed failure modes (timeouts, retries, background tasks, event loop interactions) where relevant.
+- [ ] CI is expected to pass (`ruff` + tests).

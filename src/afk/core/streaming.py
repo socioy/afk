@@ -12,8 +12,9 @@ status updates during agent execution via ``Runner.run_stream()``.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from typing import AsyncIterator, Literal
+from typing import Literal
 
 from ..agents.types import AgentResult, AgentRunEvent, AgentState
 from ..llms.types import JSONValue

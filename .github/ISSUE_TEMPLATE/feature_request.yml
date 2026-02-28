@@ -1,0 +1,97 @@
+name: Feature request
+description: Propose a new AFK capability, runtime enhancement, or DX improvement
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        AFK is optimized for production-grade agent systems.
+        Please focus on concrete use-cases, expected behavior, and trade-offs.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What limitation are you hitting today?
+      placeholder: We need deterministic retries for background tool resumption across process restarts...
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the API/behavior you want.
+      placeholder: Add RunnerConfig.background_tool_retry_policy with bounded retry/backoff...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches and why they are insufficient.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Primary area
+      options:
+        - Core Runner lifecycle
+        - LLM client/providers
+        - Tooling & policy hooks
+        - Background tools
+        - Debugger / observability
+        - Memory backends
+        - Queues / contracts
+        - MCP support
+        - Docs / examples / DX
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: api
+    attributes:
+      label: Proposed API (optional)
+      description: Sketch function signatures/config schema if relevant.
+      render: python
+    validations:
+      required: false
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: What should be true when this feature is complete?
+      placeholder: |
+        - Runner emits deterministic lifecycle events for the new flow.
+        - Existing APIs remain backward compatible.
+        - Docs and examples include one end-to-end usage path.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: impact
+    attributes:
+      label: Impact profile
+      options:
+        - label: This may affect existing public APIs.
+          required: false
+        - label: This likely needs docs updates.
+          required: false
+        - label: This likely needs new tests/evals.
+          required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched existing issues/discussions first.
+          required: true
+        - label: This request is scoped and actionable.
+          required: true

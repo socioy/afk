@@ -8,8 +8,9 @@ Human-in-the-loop interaction types.
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from typing import AsyncIterator, Protocol
+from typing import Protocol
 
 from ...llms.types import JSONValue
 from .common import DecisionKind
@@ -104,7 +105,7 @@ class AgentRunHandle(Protocol):
     """Protocol for asynchronous run lifecycle controls."""
 
     @property
-    def events(self) -> AsyncIterator["AgentRunEvent"]:
+    def events(self) -> AsyncIterator[AgentRunEvent]:
         """
         Event stream for the run lifecycle.
 

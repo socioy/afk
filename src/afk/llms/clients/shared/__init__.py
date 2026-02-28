@@ -6,6 +6,12 @@ See LICENSE file for full license text.
 Shared client helper utilities.
 """
 
+from .content import (
+    json_text,
+    normalize_role,
+    to_input_text_part,
+    tool_result_label,
+)
 from .normalization import (
     extract_text_from_content,
     extract_tool_calls,
@@ -15,12 +21,6 @@ from .normalization import (
     get_attr_str,
     to_jsonable,
     to_plain_dict,
-)
-from .content import (
-    json_text,
-    normalize_role,
-    tool_result_label,
-    to_input_text_part,
 )
 from .transport import collect_headers
 

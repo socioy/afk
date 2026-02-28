@@ -5,6 +5,7 @@ import asyncio
 import pytest
 from pydantic import BaseModel
 
+from afk.llms.tool_export import toolspec_to_openai_tool
 from afk.tools import (
     Middleware,
     PostHook,
@@ -21,7 +22,6 @@ from afk.tools import (
     registry_middleware,
     tool,
 )
-from afk.llms.tool_export import toolspec_to_openai_tool
 from afk.tools.core.errors import (
     ToolAlreadyRegisteredError,
     ToolNotFoundError,
@@ -445,4 +445,4 @@ def test_registry_middleware_decorator_preserves_name_and_description():
         return await call_next(tool_obj, raw_args, ctx, None, None)
 
     assert mw.name == "custom_name"
-    assert getattr(mw, "description") == "custom description"
+    assert mw.description == "custom description"

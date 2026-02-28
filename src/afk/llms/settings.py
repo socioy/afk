@@ -34,7 +34,7 @@ class LLMSettings:
     stream_idle_timeout_s: float | None = 45.0
 
     @staticmethod
-    def from_env() -> "LLMSettings":
+    def from_env() -> LLMSettings:
         """Load settings from environment variables."""
         return LLMSettings(
             default_provider=os.getenv("AFK_LLM_PROVIDER", "litellm"),

@@ -8,18 +8,17 @@ Prebuilt tools for skill discovery, reading, and constrained command execution.
 
 from __future__ import annotations
 
-
 import asyncio
 from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, Field
 
-from afk.tools.core.base import Tool
-from afk.tools.core.decorator import tool
 from afk.agents.errors import SkillAccessError, SkillCommandDeniedError
 from afk.agents.skills import SkillStore, get_skill_store
 from afk.agents.types import SkillRef, SkillToolPolicy
+from afk.tools.core.base import Tool
+from afk.tools.core.decorator import tool
 
 
 class _EmptyArgs(BaseModel):
@@ -104,14 +103,15 @@ def build_skill_tools(
         _ensure_inside(target, root)
         if not target.exists() or not target.is_file():
             raise SkillAccessError(f"Skill file not found: {args.relative_path}")
-        text = target.read_text(encoding="utf-8")
-        if len(text) > args.max_chars:
+        text = await asyncio.to_thread(target.read_text, encoding="utf-8")
+        truncated = len(text) > args.max_chars
+        if truncated:
             text = text[: args.max_chars]
         return {
             "skill_name": args.skill_name,
             "path": str(target),
             "content": text,
-            "truncated": len(text) == args.max_chars,
+            "truncated": truncated,
         }
 
     @tool(args_model=_RunSkillCommandArgs, name="run_skill_command")
@@ -129,10 +129,11 @@ def build_skill_tools(
         if policy.deny_shell_operators:
             # Keep execution deterministic and safe by denying shell chaining.
             forbidden = {"&&", "||", ";", "|", "`", "$("}
-            if any(part in forbidden for part in all_parts):
-                raise SkillCommandDeniedError(
-                    "Command denied due to shell operator restrictions"
-                )
+            for part in all_parts:
+                if any(token in part for token in forbidden):
+                    raise SkillCommandDeniedError(
+                        "Command denied due to shell operator restrictions"
+                    )
 
         cwd = None
         if args.cwd:
@@ -154,7 +155,7 @@ def build_skill_tools(
         )
         try:
             stdout_b, stderr_b = await asyncio.wait_for(proc.communicate(), timeout_s)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             proc.kill()
             await proc.communicate()
             raise SkillCommandDeniedError(

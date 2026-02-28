@@ -9,8 +9,8 @@ DAG delegation planner, validator, and parallel scheduler.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Awaitable, Callable
 from dataclasses import replace
-from typing import Awaitable, Callable
 
 from ...agents.delegation import (
     DelegationNode,

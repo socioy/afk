@@ -8,12 +8,11 @@ This module provides factory functions for creating memory store backends based 
 
 from __future__ import annotations
 
-
 import os
 
-from afk.memory.store import MemoryStore
 from afk.memory.adapters.in_memory import InMemoryMemoryStore
 from afk.memory.adapters.sqlite import SQLiteMemoryStore
+from afk.memory.store import MemoryStore
 
 
 def _env_bool(name: str, default: bool = False) -> bool:

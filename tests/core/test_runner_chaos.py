@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 
+from pydantic import BaseModel
+
 from afk.agents import Agent, AgentBudgetExceededError, FailSafeConfig
 from afk.core.runner import Runner
 from afk.llms import LLM
@@ -15,7 +17,6 @@ from afk.llms.types import (
 )
 from afk.memory import InMemoryMemoryStore
 from afk.tools import tool
-from pydantic import BaseModel
 
 
 class _FastLLM(LLM):

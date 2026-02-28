@@ -8,12 +8,11 @@ This module defines common provider-agnostic types used in LLM interactions.
 
 from __future__ import annotations
 
-
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from typing import (
     TYPE_CHECKING,
     Any,
-    AsyncIterator,
     Literal,
     NotRequired,
     Protocol,
@@ -23,6 +22,7 @@ from typing import (
 
 if TYPE_CHECKING:
     from pydantic import BaseModel
+
     from .runtime.contracts import (
         CachePolicy,
         RetryPolicy,
@@ -195,11 +195,11 @@ class LLMRequest:
     thinking_effort: ThinkingEffort | None = None
     max_thinking_tokens: int | None = None
     timeout_s: float | None = None
-    retry_policy: "RetryPolicy | None" = None
-    timeout_policy: "TimeoutPolicy | None" = None
+    retry_policy: RetryPolicy | None = None
+    timeout_policy: TimeoutPolicy | None = None
     stream_idle_timeout_s: float | None = None
-    route_policy: "RoutePolicy | None" = None
-    cache_policy: "CachePolicy | None" = None
+    route_policy: RoutePolicy | None = None
+    cache_policy: CachePolicy | None = None
     metadata: JSONObject = field(default_factory=dict)
     extra: JSONObject = field(default_factory=dict)
 
@@ -346,14 +346,14 @@ class LLMSessionHandle(Protocol):
         self,
         req: LLMRequest,
         *,
-        response_model: type["BaseModel"] | None = None,
+        response_model: type[BaseModel] | None = None,
     ) -> LLMResponse: ...
 
     async def stream(
         self,
         req: LLMRequest,
         *,
-        response_model: type["BaseModel"] | None = None,
+        response_model: type[BaseModel] | None = None,
     ) -> LLMStreamHandle: ...
 
     async def pause(self) -> None: ...

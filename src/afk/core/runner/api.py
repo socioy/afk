@@ -18,8 +18,8 @@ from ...agents.errors import (
     AgentCheckpointCorruptionError,
     AgentConfigurationError,
 )
-from ...agents.policy.engine import PolicyEngine
 from ...agents.lifecycle.runtime import EffectJournal, checkpoint_latest_key
+from ...agents.policy.engine import PolicyEngine
 from ...agents.types import AgentResult, AgentRunHandle, json_value_from_tool_result
 from ...llms.types import JSONValue
 from ...memory import (
@@ -526,9 +526,15 @@ class RunnerAPIMixin:
             stream_completed,
             stream_error,
             text_delta,
-            tool_deferred as _tool_deferred,
-            tool_started as _tool_started,
+        )
+        from ..streaming import (
             step_started as _step_started,
+        )
+        from ..streaming import (
+            tool_deferred as _tool_deferred,
+        )
+        from ..streaming import (
+            tool_started as _tool_started,
         )
 
         run_handle = await self.run_handle(
@@ -674,5 +680,6 @@ class RunnerAPIMixin:
             finally:
                 await stream.close()
 
-        asyncio.create_task(_bridge())
+        task = asyncio.create_task(_bridge())
+        stream._bridge_task = task  # prevent GC collection mid-execution
         return stream

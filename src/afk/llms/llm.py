@@ -6,7 +6,6 @@ See LICENSE file for full license text.
 
 from __future__ import annotations
 
-
 import asyncio
 import inspect
 import json
@@ -14,15 +13,16 @@ import socket
 import time
 import uuid
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
 from dataclasses import replace
-from typing import Any, AsyncIterator, Awaitable, Callable, Mapping, TypeVar, cast
+from typing import Any, TypeVar, cast
 
 from pydantic import BaseModel, ValidationError
 
 from .config import LLMConfig
 from .errors import (
-    LLMCapabilityError,
     LLMCancelledError,
+    LLMCapabilityError,
     LLMConfigurationError,
     LLMError,
     LLMInterruptedError,
@@ -382,7 +382,7 @@ class LLM(ABC):
         supported_thinking_efforts: set[str] | None = None,
         default_thinking_effort: str | None = None,
         observers: list[LLMObserver] | None = None,
-    ) -> "LLM":
+    ) -> LLM:
         """
         Legacy helper removed in v2 hard-break.
         """

@@ -95,9 +95,7 @@ class MCPProtocolHandler:
                 result = self.handle_tools_list(params)
             elif method == "tools/call":
                 result = await self.handle_tools_call(params)
-            elif method == "ping":
-                result = {}
-            elif method == "notifications/initialized":
+            elif method == "ping" or method == "notifications/initialized":
                 result = {}
             else:
                 return jsonrpc_error(

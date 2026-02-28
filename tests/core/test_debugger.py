@@ -21,7 +21,14 @@ def emit_secret(args: _SecretArgs) -> dict[str, str]:
 
 def test_debugger_runner_enables_debug_and_redacts_secret_payloads():
     from afk.llms import LLM
-    from afk.llms.types import EmbeddingRequest, EmbeddingResponse, LLMCapabilities, LLMRequest, LLMResponse, ToolCall
+    from afk.llms.types import (
+        EmbeddingRequest,
+        EmbeddingResponse,
+        LLMCapabilities,
+        LLMRequest,
+        LLMResponse,
+        ToolCall,
+    )
 
     class _LLM(LLM):
         def __init__(self) -> None:
@@ -88,7 +95,13 @@ def test_debugger_runner_enables_debug_and_redacts_secret_payloads():
 
 def test_runner_config_debug_without_debugger_facade_emits_debug_payloads():
     from afk.llms import LLM
-    from afk.llms.types import EmbeddingRequest, EmbeddingResponse, LLMCapabilities, LLMRequest, LLMResponse
+    from afk.llms.types import (
+        EmbeddingRequest,
+        EmbeddingResponse,
+        LLMCapabilities,
+        LLMRequest,
+        LLMResponse,
+    )
 
     class _LLM(LLM):
         @property

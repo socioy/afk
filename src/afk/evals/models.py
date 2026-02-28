@@ -33,7 +33,7 @@ class EvalCase:
     context: dict[str, JSONValue] = field(default_factory=dict)
     thread_id: str | None = None
     tags: tuple[str, ...] = ()
-    budget: "EvalBudget | None" = None
+    budget: EvalBudget | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,9 +69,9 @@ class EvalSuiteConfig:
     execution_mode: ExecutionMode = "adaptive"
     max_concurrency: int = 4
     fail_fast: bool = False
-    assertions: tuple["EvalAssertion | AsyncEvalAssertion", ...] = ()
-    scorers: tuple["EvalScorer", ...] = ()
-    budget: "EvalBudget | None" = None
+    assertions: tuple[EvalAssertion | AsyncEvalAssertion, ...] = ()
+    scorers: tuple[EvalScorer, ...] = ()
+    budget: EvalBudget | None = None
 
 
 @dataclass(frozen=True, slots=True)

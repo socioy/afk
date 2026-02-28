@@ -8,12 +8,13 @@ This module provides a SQLite memory backend with JSON persistence and local vec
 
 from __future__ import annotations
 
-
-from typing import Optional, Sequence, cast
+from collections.abc import Sequence
+from typing import cast
 
 import aiosqlite
 import numpy as np
 
+from afk.memory.store import MemoryCapabilities, MemoryStore
 from afk.memory.types import (
     JsonObject,
     JsonValue,
@@ -22,7 +23,6 @@ from afk.memory.types import (
 )
 from afk.memory.utils import json_dumps, json_loads, now_ms
 from afk.memory.vector import cosine_similarity
-from afk.memory.store import MemoryCapabilities, MemoryStore
 
 
 class SQLiteMemoryStore(MemoryStore):
@@ -142,11 +142,11 @@ class SQLiteMemoryStore(MemoryStore):
     ) -> list[MemoryEvent]:
         self._ensure_setup()
         db = self._db()
-        cursor = await db.execute(
+        async with db.execute(
             "SELECT * FROM events WHERE thread_id=? ORDER BY timestamp DESC LIMIT ?",
             (thread_id, limit),
-        )
-        rows = await cursor.fetchall()
+        ) as cursor:
+            rows = await cursor.fetchall()
         events = [self._row_to_event(row) for row in rows]
         return events[::-1]
 
@@ -155,11 +155,11 @@ class SQLiteMemoryStore(MemoryStore):
     ) -> list[MemoryEvent]:
         self._ensure_setup()
         db = self._db()
-        cursor = await db.execute(
+        async with db.execute(
             "SELECT * FROM events WHERE thread_id=? AND timestamp>=? ORDER BY timestamp ASC LIMIT ?",
             (thread_id, since_ms, limit),
-        )
-        rows = await cursor.fetchall()
+        ) as cursor:
+            rows = await cursor.fetchall()
         return [self._row_to_event(row) for row in rows]
 
     async def put_state(self, thread_id: str, key: str, value: JsonValue) -> None:
@@ -189,11 +189,11 @@ class SQLiteMemoryStore(MemoryStore):
     async def get_state(self, thread_id: str, key: str) -> JsonValue | None:
         self._ensure_setup()
         db = self._db()
-        cursor = await db.execute(
+        async with db.execute(
             "SELECT value_json FROM state_kv WHERE thread_id=? AND key=?",
             (thread_id, key),
-        )
-        row = await cursor.fetchone()
+        ) as cursor:
+            row = await cursor.fetchone()
         if row is None:
             return None
         return json_loads(cast(str, row["value_json"]))
@@ -204,16 +204,18 @@ class SQLiteMemoryStore(MemoryStore):
         self._ensure_setup()
         db = self._db()
         if prefix:
-            cursor = await db.execute(
-                "SELECT key, value_json FROM state_kv WHERE thread_id=? AND key LIKE ? ORDER BY key ASC",
-                (thread_id, f"{prefix}%"),
+            escaped_prefix = prefix.replace("%", "\\%").replace("_", "\\_")
+            query = (
+                "SELECT key, value_json FROM state_kv WHERE thread_id=? AND key LIKE ? ESCAPE '\\' ORDER BY key ASC",
+                (thread_id, f"{escaped_prefix}%"),
             )
         else:
-            cursor = await db.execute(
+            query = (
                 "SELECT key, value_json FROM state_kv WHERE thread_id=? ORDER BY key ASC",
                 (thread_id,),
             )
-        rows = await cursor.fetchall()
+        async with db.execute(query[0], query[1]) as cursor:
+            rows = await cursor.fetchall()
         return {
             cast(str, row["key"]): json_loads(cast(str, row["value_json"]))
             for row in rows
@@ -226,30 +228,35 @@ class SQLiteMemoryStore(MemoryStore):
     ) -> None:
         self._ensure_setup()
         db = self._db()
-        await db.execute("DELETE FROM events WHERE thread_id=?", (thread_id,))
-        for event in events:
-            await db.execute(
-                """
-                INSERT INTO events (id, thread_id, user_id, type, timestamp, payload_json, tags_json)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    event.id,
-                    event.thread_id,
-                    event.user_id,
-                    event.type,
-                    event.timestamp,
-                    json_dumps(event.payload),
-                    json_dumps(event.tags),
-                ),
-            )
-        await db.commit()
+        try:
+            await db.execute("BEGIN")
+            await db.execute("DELETE FROM events WHERE thread_id=?", (thread_id,))
+            for event in events:
+                await db.execute(
+                    """
+                    INSERT INTO events (id, thread_id, user_id, type, timestamp, payload_json, tags_json)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        event.id,
+                        event.thread_id,
+                        event.user_id,
+                        event.type,
+                        event.timestamp,
+                        json_dumps(event.payload),
+                        json_dumps(event.tags),
+                    ),
+                )
+            await db.execute("COMMIT")
+        except Exception:
+            await db.execute("ROLLBACK")
+            raise
 
     async def upsert_long_term_memory(
         self,
         memory: LongTermMemory,
         *,
-        embedding: Optional[Sequence[float]] = None,
+        embedding: Sequence[float] | None = None,
     ) -> None:
         self._ensure_setup()
         db = self._db()
@@ -321,8 +328,8 @@ class SQLiteMemoryStore(MemoryStore):
             params.append(scope)
         params.append(limit)
         sql = f"SELECT * FROM long_term_memory WHERE {where_clause} ORDER BY updated_at DESC LIMIT ?"
-        cursor = await db.execute(sql, tuple(params))
-        rows = await cursor.fetchall()
+        async with db.execute(sql, tuple(params)) as cursor:
+            rows = await cursor.fetchall()
         return [self._row_to_long_term_memory(row) for row in rows]
 
     async def search_long_term_memory_text(
@@ -369,10 +376,13 @@ class SQLiteMemoryStore(MemoryStore):
         if scope is not None:
             where_clause = f"{where_clause} AND scope=?"
             params.append(scope)
-        cursor = await db.execute(
-            f"SELECT * FROM long_term_memory WHERE {where_clause}", tuple(params)
-        )
-        rows = await cursor.fetchall()
+        # Cap candidate rows to prevent OOM; cosine ranking happens in Python.
+        scan_limit = max(limit * 50, 10_000)
+        async with db.execute(
+            f"SELECT * FROM long_term_memory WHERE {where_clause} ORDER BY updated_at DESC LIMIT ?",
+            (*tuple(params), scan_limit),
+        ) as cursor:
+            rows = await cursor.fetchall()
 
         ranked: list[tuple[LongTermMemory, float]] = []
         for row in rows:
@@ -400,7 +410,7 @@ class SQLiteMemoryStore(MemoryStore):
         return MemoryEvent(
             id=cast(str, row["id"]),
             thread_id=cast(str, row["thread_id"]),
-            user_id=cast(Optional[str], row["user_id"]),
+            user_id=cast(str | None, row["user_id"]),
             type=cast(str, row["type"]),
             timestamp=int(cast(int, row["timestamp"])),
             payload=cast(JsonObject, json_loads(cast(str, row["payload_json"]))),
@@ -411,10 +421,10 @@ class SQLiteMemoryStore(MemoryStore):
     def _row_to_long_term_memory(row: aiosqlite.Row) -> LongTermMemory:
         return LongTermMemory(
             id=cast(str, row["id"]),
-            user_id=cast(Optional[str], row["user_id"]),
+            user_id=cast(str | None, row["user_id"]),
             scope=cast(str, row["scope"]),
             data=cast(JsonObject, json_loads(cast(str, row["data_json"]))),
-            text=cast(Optional[str], row["text"]),
+            text=cast(str | None, row["text"]),
             tags=cast(list[str], json_loads(cast(str, row["tags_json"]))),
             metadata=cast(JsonObject, json_loads(cast(str, row["metadata_json"]))),
             created_at=int(cast(int, row["created_at"])),

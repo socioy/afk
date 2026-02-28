@@ -69,10 +69,13 @@ Build AI-searchable docs index + skill metadata:
 - Code builds and tests pass locally.
 - New behavior is covered by tests.
 - Relevant docs are updated.
+- Add a changelog-ready note for `CHANGELOG.md` (`[Unreleased]`) when there is user-visible impact.
 - PR description explains:
   - what changed
   - why it changed
   - any migration impact
+
+Changelog entry format template: `.github/CHANGELOG_ENTRY_TEMPLATE.md`
 
 ## Reporting Issues
 

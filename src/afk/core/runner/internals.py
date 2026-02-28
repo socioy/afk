@@ -8,11 +8,12 @@ Runner helpers for persistence, serialization, budgeting, and replay logic.
 
 from __future__ import annotations
 
-import time
 import asyncio
 import inspect
+import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any, Awaitable, Callable
+from typing import Any
 
 from ...agents.errors import (
     AgentBudgetExceededError,
@@ -21,7 +22,6 @@ from ...agents.errors import (
     AgentInterruptedError,
     AgentLoopLimitError,
 )
-from ...agents.model.resolution import resolve_model_to_llm
 from ...agents.lifecycle.runtime import (
     checkpoint_latest_key,
     checkpoint_state_key,
@@ -35,6 +35,7 @@ from ...agents.lifecycle.versioning import (
     check_checkpoint_schema_version,
     migrate_checkpoint_record,
 )
+from ...agents.model.resolution import resolve_model_to_llm
 from ...agents.types import (
     AgentResult,
     AgentRunEvent,
@@ -47,8 +48,16 @@ from ...agents.types import (
     UsageAggregate,
     json_value_from_tool_result,
 )
-from ...llms.types import JSONValue, LLMRequest, LLMResponse, Message, ToolCall, Usage
-from ...llms.types import StreamCompletedEvent, StreamTextDeltaEvent
+from ...llms.types import (
+    JSONValue,
+    LLMRequest,
+    LLMResponse,
+    Message,
+    StreamCompletedEvent,
+    StreamTextDeltaEvent,
+    ToolCall,
+    Usage,
+)
 from ...memory import (
     InMemoryMemoryStore,
     MemoryEvent,
@@ -58,8 +67,7 @@ from ...memory import (
     now_ms,
 )
 from ...observability import contracts as obs_contracts
-from ...tools import ToolResult
-from ...tools import ToolDeferredHandle
+from ...tools import ToolDeferredHandle, ToolResult
 from ..telemetry import TelemetryEvent, TelemetrySpan
 from .types import _RunHandle
 
@@ -322,13 +330,13 @@ class RunnerInternalsMixin:
             event: Event to append.
         """
         last_error: Exception | None = None
-        for _ in range(3):
+        for attempt in range(3):
             try:
                 await memory.append_event(event)
                 return
             except Exception as e:
                 last_error = e
-                await asyncio.sleep(0)
+                await asyncio.sleep(0.05 * (2 ** attempt))
         if last_error is not None:
             self._memory_fallback_reason = f"{self._memory_fallback_reason or 'memory_append_failed'}: {last_error}"
 
@@ -461,7 +469,8 @@ class RunnerInternalsMixin:
         if queue is None:
             await self._ensure_checkpoint_writer()
             queue = self._checkpoint_queue
-        assert queue is not None
+        if queue is None:
+            raise RuntimeError("Checkpoint writer queue not initialized")
         if write.coalesce:
             coalesce_key = (write.thread_id, write.key)
             self._checkpoint_coalesce_buffer[coalesce_key] = write
@@ -503,6 +512,8 @@ class RunnerInternalsMixin:
                         key=write.key,
                         value=write.value,
                     )
+            except Exception:
+                pass  # checkpoint write failure must not crash the writer loop
             finally:
                 self._checkpoint_pending_count = max(0, self._checkpoint_pending_count - 1)
                 if self._checkpoint_pending_count == 0:
@@ -542,7 +553,10 @@ class RunnerInternalsMixin:
         while True:
             interval = max(0.1, float(self.config.background_tool_poll_interval_s))
             await asyncio.sleep(interval)
-            await self._poll_background_pending()
+            try:
+                await self._poll_background_pending()
+            except Exception:
+                pass  # poller must not crash; next iteration will retry
 
     async def _stop_background_poller(self) -> None:
         task = self._background_poller_task

@@ -8,8 +8,8 @@ from afk.agents.a2a import (
     A2AAuthContext,
     A2AServiceHost,
     A2AServiceHostError,
-    APIKeyA2AAuthProvider,
     AllowAllA2AAuthProvider,
+    APIKeyA2AAuthProvider,
     InternalA2AProtocol,
 )
 from afk.agents.contracts import AgentInvocationRequest, AgentInvocationResponse

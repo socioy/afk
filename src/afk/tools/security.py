@@ -8,10 +8,10 @@ Sandbox and secret-scoping primitives for tool execution.
 
 from __future__ import annotations
 
-
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Protocol
+from typing import Any, Protocol
 
 from .core.base import ToolContext, ToolResult
 from .core.errors import ToolPolicyError

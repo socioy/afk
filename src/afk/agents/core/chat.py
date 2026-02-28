@@ -8,8 +8,8 @@ Chat-oriented agent convenience wrapper.
 
 from __future__ import annotations
 
-from .base import Agent
 from ..types import AgentResult, JSONValue
+from .base import Agent
 
 
 class ChatAgent(Agent):

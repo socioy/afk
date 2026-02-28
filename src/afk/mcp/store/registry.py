@@ -9,11 +9,11 @@ External MCP server registry/store and AFK tool materialization helpers.
 from __future__ import annotations
 
 import threading
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
-from afk.tools import Tool, ToolContext, ToolSpec
 from afk.mcp.store.transport import MCPJsonRpcClient
 from afk.mcp.store.types import (
     MCPRemoteCallError,
@@ -29,6 +29,7 @@ from afk.mcp.store.utils import (
     normalize_remote_tools,
     resolve_server_ref,
 )
+from afk.tools import Tool, ToolContext, ToolSpec
 
 __all__ = [
     "MCPServerRef",

@@ -12,8 +12,8 @@ LiteLLM, etc.).
 
 from __future__ import annotations
 
-
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
 
 def normalize_json_schema(schema: dict[str, Any]) -> dict[str, Any]:

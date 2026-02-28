@@ -140,7 +140,7 @@ class RedisTaskQueue(BaseTaskQueue):
                     ),
                     timeout=timeout,
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 return None
 
         if result is None:

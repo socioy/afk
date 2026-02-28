@@ -60,7 +60,6 @@ from ...agents.errors import (
     SubagentExecutionError,
     SubagentRoutingError,
 )
-from ...agents.model.resolution import resolve_model_to_llm
 from ...agents.lifecycle.runtime import (
     CircuitBreaker,
     build_skill_manifest_prompt,
@@ -68,6 +67,7 @@ from ...agents.lifecycle.runtime import (
     resolve_skills,
     state_snapshot,
 )
+from ...agents.model.resolution import resolve_model_to_llm
 from ...agents.security import (
     UNTRUSTED_TOOL_PREAMBLE,
     render_untrusted_tool_message,

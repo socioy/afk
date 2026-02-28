@@ -284,7 +284,7 @@ class TaskWorker:
                 await asyncio.wait_for(
                     self._task, timeout=self._config.shutdown_timeout_s
                 )
-            except (asyncio.CancelledError, asyncio.TimeoutError):
+            except (TimeoutError, asyncio.CancelledError):
                 pass
 
         if self._active_tasks:

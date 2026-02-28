@@ -8,14 +8,15 @@ This module provides a PostgreSQL + pgvector memory backend for production workl
 
 from __future__ import annotations
 
-
-from typing import Any, Optional, Sequence, cast
+from collections.abc import Sequence
+from typing import Any, cast
 
 try:
     import asyncpg
 except Exception:  # pragma: no cover - optional native dependency
     asyncpg = None  # type: ignore[assignment]
 
+from afk.memory.store import MemoryCapabilities, MemoryStore
 from afk.memory.types import (
     JsonObject,
     JsonValue,
@@ -24,7 +25,6 @@ from afk.memory.types import (
 )
 from afk.memory.utils import json_dumps, now_ms
 from afk.memory.vector import format_pgvector
-from afk.memory.store import MemoryCapabilities, MemoryStore
 
 
 class PostgresMemoryStore(MemoryStore):
@@ -281,7 +281,7 @@ class PostgresMemoryStore(MemoryStore):
         self,
         memory: LongTermMemory,
         *,
-        embedding: Optional[Sequence[float]] = None,
+        embedding: Sequence[float] | None = None,
     ) -> None:
         self._ensure_setup()
         pool = self._pool_required()
@@ -498,7 +498,7 @@ class PostgresMemoryStore(MemoryStore):
         return MemoryEvent(
             id=cast(str, record["id"]),
             thread_id=cast(str, record["thread_id"]),
-            user_id=cast(Optional[str], record["user_id"]),
+            user_id=cast(str | None, record["user_id"]),
             type=cast(str, record["type"]),
             timestamp=int(cast(int, record["timestamp"])),
             payload=cast(JsonObject, record["payload_json"]),
@@ -509,10 +509,10 @@ class PostgresMemoryStore(MemoryStore):
     def _record_to_memory(record: asyncpg.Record) -> LongTermMemory:
         return LongTermMemory(
             id=cast(str, record["id"]),
-            user_id=cast(Optional[str], record["user_id"]),
+            user_id=cast(str | None, record["user_id"]),
             scope=cast(str, record["scope"]),
             data=cast(JsonObject, record["data_json"]),
-            text=cast(Optional[str], record["text"]),
+            text=cast(str | None, record["text"]),
             tags=cast(list[str], record["tags_json"]),
             metadata=cast(JsonObject, record["metadata_json"]),
             created_at=int(cast(int, record["created_at"])),

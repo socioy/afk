@@ -8,13 +8,12 @@ LLM resolution helpers for agent runtime.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 
 from ...llms import LLMClient, create_llm_client
 from ...llms.providers import LLMTransport
 from ..errors import AgentConfigurationError
-
 
 ModelResolver = Callable[[str], LLMTransport]
 

@@ -11,8 +11,8 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass
 
-from .base import CacheEntry, LLMCacheBackend
 from ..types import LLMResponse
+from .base import CacheEntry, LLMCacheBackend
 
 
 @dataclass(slots=True)

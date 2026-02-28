@@ -8,12 +8,11 @@ Typed observability primitives for LLM lifecycle events.
 
 from __future__ import annotations
 
-
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Awaitable, Callable, Literal, Protocol
+from typing import Literal, Protocol
 
 from .types import Usage
-
 
 LLMLifecycleEventType = Literal[
     "request_start",

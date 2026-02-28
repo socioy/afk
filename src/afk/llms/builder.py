@@ -48,22 +48,22 @@ class LLMBuilder:
         self._cache_policy: CachePolicy | None = None
         self._coalescing_policy: CoalescingPolicy | None = None
 
-    def provider(self, provider: str) -> "LLMBuilder":
+    def provider(self, provider: str) -> LLMBuilder:
         """Set the default provider id used when `build()` is called."""
         self._provider = provider.strip().lower()
         return self
 
-    def model(self, model: str) -> "LLMBuilder":
+    def model(self, model: str) -> LLMBuilder:
         """Override the default model in builder settings."""
         self._settings = replace(self._settings, default_model=model)
         return self
 
-    def settings(self, settings: LLMSettings) -> "LLMBuilder":
+    def settings(self, settings: LLMSettings) -> LLMBuilder:
         """Replace builder settings with an explicit `LLMSettings` instance."""
         self._settings = settings
         return self
 
-    def profile(self, name: str) -> "LLMBuilder":
+    def profile(self, name: str) -> LLMBuilder:
         """Apply one named runtime profile from `afk.llms.profiles.PROFILES`."""
         key = name.strip().lower()
         row = PROFILES.get(key)
@@ -78,7 +78,7 @@ class LLMBuilder:
         self._coalescing_policy = row["coalescing"]
         return self
 
-    def for_agent_runtime(self) -> "LLMBuilder":
+    def for_agent_runtime(self) -> LLMBuilder:
         """
         Apply a production-oriented baseline for complex agent orchestration.
 
@@ -90,27 +90,27 @@ class LLMBuilder:
         self,
         provider: str,
         settings: Mapping[str, JSONValue],
-    ) -> "LLMBuilder":
+    ) -> LLMBuilder:
         """Attach provider-specific settings passed to provider factory hooks."""
         self._provider_settings[provider.strip().lower()] = settings
         return self
 
-    def with_middlewares(self, middlewares: MiddlewareStack) -> "LLMBuilder":
+    def with_middlewares(self, middlewares: MiddlewareStack) -> LLMBuilder:
         """Configure middleware stacks for chat/stream/embed transport paths."""
         self._middlewares = middlewares
         return self
 
-    def with_observers(self, observers: list[LLMObserver]) -> "LLMBuilder":
+    def with_observers(self, observers: list[LLMObserver]) -> LLMBuilder:
         """Configure lifecycle observers for best-effort telemetry callbacks."""
         self._observers = list(observers)
         return self
 
-    def with_cache(self, cache_backend) -> "LLMBuilder":
+    def with_cache(self, cache_backend) -> LLMBuilder:
         """Select one cache backend instance or registered backend id."""
         self._cache_backend = cache_backend
         return self
 
-    def with_router(self, router) -> "LLMBuilder":
+    def with_router(self, router) -> LLMBuilder:
         """Select one router instance or registered router id."""
         self._router = router
         return self

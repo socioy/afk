@@ -9,8 +9,9 @@ Base agent abstractions with DX-first constructor.
 from __future__ import annotations
 
 import inspect
+from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from ...llms import LLM
 from ...tools import Tool, ToolContext, ToolRegistry
@@ -26,8 +27,8 @@ from ..types import (
     FailSafeConfig,
     InstructionProvider,
     InstructionRole,
-    MCPServerLike,
     JSONValue,
+    MCPServerLike,
     PolicyRole,
     SkillToolPolicy,
     SubagentParallelismMode,
@@ -36,9 +37,9 @@ from ..types import (
 )
 
 if TYPE_CHECKING:
-    from ..policy.engine import PolicyEngine
     from ...core.runner import Runner
     from ..model.resolution import ModelResolver
+    from ..policy.engine import PolicyEngine
 
 
 class BaseAgent:
@@ -55,19 +56,19 @@ class BaseAgent:
         model: str | LLM,
         name: str | None = None,
         tools: list[ToolLike] | None = None,
-        subagents: list["BaseAgent"] | None = None,
+        subagents: list[BaseAgent] | None = None,
         instructions: str | InstructionProvider | None = None,
         instruction_file: str | Path | None = None,
         prompts_dir: str | Path | None = None,
         context_defaults: dict[str, JSONValue] | None = None,
         inherit_context_keys: list[str] | None = None,
-        model_resolver: "ModelResolver | None" = None,
+        model_resolver: ModelResolver | None = None,
         skills: list[str] | None = None,
         mcp_servers: list[MCPServerLike] | None = None,
         skills_dir: str | Path = ".agents/skills",
         instruction_roles: list[InstructionRole] | None = None,
         policy_roles: list[PolicyRole] | None = None,
-        policy_engine: "PolicyEngine | None" = None,
+        policy_engine: PolicyEngine | None = None,
         subagent_router: SubagentRouter | None = None,
         max_steps: int = 20,
         tool_parallelism: int | None = None,
@@ -79,7 +80,7 @@ class BaseAgent:
         skill_tool_policy: SkillToolPolicy | None = None,
         enable_skill_tools: bool = True,
         enable_mcp_tools: bool = True,
-        runner: "Runner | None" = None,
+        runner: Runner | None = None,
     ) -> None:
         """
         Initialize an agent definition.

@@ -11,10 +11,9 @@ from __future__ import annotations
 from ...memory import create_memory_store_from_env, new_id  # noqa: F401
 from .api import RunnerAPIMixin
 from .execution import RunnerExecutionMixin
-from .internals import RunnerInternalsMixin
 from .interaction import RunnerInteractionMixin
-from .types import RunnerConfig
-from .types import RunnerDebugConfig
+from .internals import RunnerInternalsMixin
+from .types import RunnerConfig, RunnerDebugConfig
 
 
 class Runner(

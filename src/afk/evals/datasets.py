@@ -9,8 +9,9 @@ Dataset loaders for eval case definitions.
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from ..agents import BaseAgent
 from ..agents.types import JSONValue

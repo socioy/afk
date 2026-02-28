@@ -11,7 +11,7 @@ from __future__ import annotations
 import asyncio
 import json
 import random
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 def clamp_str(s: str, max_chars: int) -> str:
@@ -21,7 +21,7 @@ def clamp_str(s: str, max_chars: int) -> str:
     return s[:max_chars] + "…"
 
 
-def safe_json_loads(s: str) -> Optional[Dict[str, Any]]:
+def safe_json_loads(s: str) -> dict[str, Any] | None:
     """Safely decode JSON object text; return `None` on decode/type failure."""
     try:
         obj = json.loads(s)
@@ -39,7 +39,7 @@ def _strip_fenced_code_block(text: str) -> str:
     if not t:
         return t
 
-    def _is_fence_line(line: str) -> Optional[str]:
+    def _is_fence_line(line: str) -> str | None:
         ls = line.lstrip()
         if ls.startswith("```"):
             return "```"
@@ -82,7 +82,7 @@ def _strip_fenced_code_block(text: str) -> str:
     return inner
 
 
-def extract_json_object(text: str) -> Optional[str]:
+def extract_json_object(text: str) -> str | None:
     """
     Best-effort extraction of the first JSON object/array from a larger text blob.
 
@@ -124,7 +124,7 @@ def extract_json_object(text: str) -> Optional[str]:
     # Stack-based balanced matcher with string/escape handling.
     stack = [opener]
     in_string = False
-    quote_char: Optional[str] = None
+    quote_char: str | None = None
     escape = False
 
     # Best-effort support for single-quoted "strings" for matching only

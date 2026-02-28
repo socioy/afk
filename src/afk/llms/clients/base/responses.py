@@ -17,18 +17,13 @@ schema mapping.
 
 from __future__ import annotations
 
-
 from abc import abstractmethod
 from collections import defaultdict
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
 from pydantic import BaseModel
 
-from ..shared.normalization import (
-    extract_usage,
-    finalize_stream_tool_calls,
-    to_plain_dict,
-)
 from ...llm import LLM
 from ...types import (
     EmbeddingRequest,
@@ -47,6 +42,11 @@ from ...types import (
     Usage,
 )
 from ...utils import safe_json_loads
+from ..shared.normalization import (
+    extract_usage,
+    finalize_stream_tool_calls,
+    to_plain_dict,
+)
 
 
 class ResponsesClientBase(LLM):

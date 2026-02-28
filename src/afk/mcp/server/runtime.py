@@ -19,8 +19,9 @@ from __future__ import annotations
 
 import json
 import uuid
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Any, Iterable
+from typing import Any
 
 try:
     from fastapi import Request as FastAPIRequest
@@ -29,14 +30,13 @@ except Exception:  # pragma: no cover
     FastAPIRequest = Any  # type: ignore[assignment]
     FastAPIResponse = Any  # type: ignore[assignment]
 
-from afk.tools import ToolRegistry
 from afk.mcp.server.protocol import (
     INVALID_REQUEST,
     PARSE_ERROR,
     MCPProtocolHandler,
     jsonrpc_error,
 )
-
+from afk.tools import ToolRegistry
 
 # ---------------------------------------------------------------------------
 # MCP server configuration
@@ -136,7 +136,7 @@ class MCPServer:
         *,
         config: MCPServerConfig | None = None,
         app: Any | None = None,
-    ) -> "MCPServer":
+    ) -> MCPServer:
         """
         Build an MCP server from an iterable of AFK tools.
 

@@ -17,8 +17,8 @@ from pathlib import Path
 from typing import Any
 
 from ...llms.types import JSONValue
-from ..skills import get_skill_store
 from ..errors import AgentCircuitOpenError, AgentExecutionError, SkillResolutionError
+from ..skills import get_skill_store
 from ..types import (
     AgentState,
     FailSafeConfig,
@@ -93,10 +93,10 @@ def build_skill_manifest_prompt(skills: list[SkillRef]) -> str:
     ]
     for skill in skills:
         lines.append(
-            (
+            
                 f"- {skill.name}: {skill.description} "
                 f"(path: {skill.skill_md_path}, checksum: {skill.checksum or 'n/a'})"
-            )
+            
         )
     return "\n".join(lines)
 
@@ -227,7 +227,13 @@ class CircuitBreaker:
     async def ensure_closed(self, key: str) -> None:
         """Raise when failure threshold is exceeded for dependency key."""
         async with self._lock_for(key):
+            now = time.time()
             rows = self.failures.get(key, [])
+            # Prune stale entries outside the cooldown window so the breaker
+            # can auto-reset once the cooldown expires.
+            cutoff = now - self.config.breaker_cooldown_s
+            rows = [ts for ts in rows if ts >= cutoff]
+            self.failures[key] = rows
             if len(rows) >= self.config.breaker_failure_threshold:
                 raise AgentCircuitOpenError(
                     f"Circuit open for dependency '{key}' "

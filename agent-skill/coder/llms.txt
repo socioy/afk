@@ -1,0 +1,649 @@
+# AFK Python Library -- LLM Reference
+# https://afk.arpan.sh
+# Source: https://github.com/arpan404/afk-py
+# Version: 0.1.0 | Python >=3.13 | License: MIT
+
+## Package Info
+
+afk-py is an async-native Python framework for building production-grade AI agents.
+Install: pip install afk-py
+
+## Architecture
+
+Three pillars: Agent (stateless config) -> Runner (stateful execution) -> Runtime (LLM, tools, memory, telemetry)
+
+Three tiers:
+- Orchestration: afk.core (runner, streaming, interaction)
+- Adapters: afk.llms, afk.tools, afk.memory
+- Extensions: afk.evals, afk.observability, afk.queues, afk.mcp, afk.messaging
+
+## Public Imports
+
+```python
+# Agents
+from afk.agents import Agent, Runner
+from afk.agents.types import AgentResult, AgentState, AgentRunEvent, FailSafeConfig
+from afk.agents.types import ApprovalRequest, ApprovalDecision, UserInputRequest, UserInputDecision, DeferredDecision
+from afk.agents.types import AgentRunHandle, DecisionKind, InteractionMode
+
+# Runner
+from afk.core.runner import RunnerConfig
+from afk.core.streaming import AgentStreamEvent, AgentStreamHandle
+
+# Tools
+from afk.tools import tool, prehook, posthook, middleware, registry_middleware
+from afk.tools import ToolResult, ToolContext, ToolSpec, ToolDeferredHandle, ToolRegistry
+from afk.tools.core.errors import AFKToolError, ToolValidationError, ToolExecutionError, ToolTimeoutError, ToolPolicyError, ToolNotFoundError, ToolPermissionError
+
+# LLM
+from afk.llms import LLMBuilder
+from afk.llms.settings import LLMSettings
+
+# Memory
+from afk.memory import create_memory_store, MemoryStore
+
+# Interaction
+from afk.core.interaction import InteractionProvider, HeadlessInteractionProvider, InMemoryInteractiveProvider
+
+# Policy
+from afk.agents.policy import PolicyEngine, PolicyRule, PolicyRuleCondition, PolicyEvaluation
+
+# Security
+from afk.tools.security import SandboxProfile, SandboxProfileProvider, SecretScopeProvider
+
+# Evals
+from afk.evals import EvalCase, EvalSuite, BudgetConfig
+```
+
+---
+
+## Agent API
+
+### Agent Constructor
+
+```python
+Agent(
+    model: str | LLM,                           # REQUIRED - model string or LLM instance
+    name: str | None = None,                     # Agent name for identification
+    tools: list[ToolLike] | None = None,         # Tool instances
+    subagents: list[BaseAgent] | None = None,    # Specialist subagents
+    instructions: str | InstructionProvider | None = None,  # System prompt
+    instruction_file: str | Path | None = None,  # Load instructions from file
+    prompts_dir: str | Path | None = None,       # Directory for prompt templates
+    context_defaults: dict[str, JSONValue] | None = None,  # Default context values
+    inherit_context_keys: list[str] | None = None, # Keys to inherit from parent
+    model_resolver: ModelResolver | None = None, # Dynamic model resolution
+    skills: list[str] | None = None,             # Skill names to load
+    mcp_servers: list[MCPServerLike] | None = None, # MCP server connections
+    skills_dir: str | Path = ".agents/skills",   # Skills directory
+    instruction_roles: list[InstructionRole] | None = None,
+    policy_roles: list[PolicyRole] | None = None,
+    policy_engine: PolicyEngine | None = None,
+    subagent_router: SubagentRouter | None = None,
+    max_steps: int = 20,                         # Max execution steps
+    tool_parallelism: int | None = None,         # Concurrent tool calls
+    subagent_parallelism_mode: str = "configurable",
+    fail_safe: FailSafeConfig | None = None,     # Error thresholds
+    reasoning_enabled: bool | None = None,
+    reasoning_effort: str | None = None,
+    reasoning_max_tokens: int | None = None,
+    skill_tool_policy: SkillToolPolicy | None = None,
+    enable_skill_tools: bool = True,
+    enable_mcp_tools: bool = True,
+    runner: Runner | None = None,                # Pre-attached runner
+)
+```
+
+### Agent.call() Shorthand
+
+```python
+result = await agent.call("Hello")  # Quick single-turn (requires runner attached)
+result = agent.call_sync("Hello")   # Sync version
+```
+
+### FailSafeConfig
+
+```python
+FailSafeConfig(
+    max_consecutive_errors: int = 3,
+    max_total_errors: int = 5,
+    max_empty_responses: int = 2,
+)
+```
+
+### AgentResult Fields
+
+```python
+result.run_id: str
+result.thread_id: str
+result.state: AgentState  # "completed" | "failed" | "cancelled" | "max_steps_reached" | ...
+result.final_text: str
+result.requested_model: str | None
+result.normalized_model: str | None
+result.provider_adapter: str | None
+result.final_structured: dict | None
+result.llm_response: LLMResponse | None
+result.tool_executions: list[ToolExecutionRecord]
+result.subagent_executions: list[SubagentExecutionRecord]
+result.skills_used: list[str]
+result.usage_aggregate: UsageAggregate
+result.total_cost_usd: float | None
+result.session_token: str | None
+result.checkpoint_token: str | None
+result.state_snapshot: dict
+```
+
+---
+
+## Runner API
+
+### Runner Constructor
+
+```python
+Runner(
+    memory_store: MemoryStore | None = None,
+    interaction_provider: InteractionProvider | None = None,
+    policy_engine: PolicyEngine | None = None,
+    telemetry: str | TelemetrySink | None = None,
+    telemetry_config: Mapping[str, JSONValue] | None = None,
+    config: RunnerConfig | None = None,
+)
+```
+
+### Runner Methods
+
+```python
+# Async execution
+result = await runner.run(agent, user_message="...", thread_id="...", context={...})
+
+# Sync execution (blocks)
+result = runner.run_sync(agent, user_message="...", thread_id="...")
+
+# Streaming
+handle = await runner.run_stream(agent, user_message="...")
+async for event in handle:
+    if event.type == "text_delta": print(event.text_delta, end="")
+
+# Run handle (lifecycle control)
+handle = await runner.run_handle(agent, user_message="...")
+await handle.pause()
+await handle.resume()
+await handle.cancel()
+result = await handle.await_result()
+
+# Resume from checkpoint
+result = await runner.resume(agent, checkpoint_token="...", user_message="...")
+handle = await runner.resume_handle(agent, checkpoint_token="...")
+
+# Thread compaction
+await runner.compact_thread(agent, thread_id="...", target_messages=20)
+
+# Background tools
+pending = await runner.list_background_tools(run_id)
+await runner.resolve_background_tool(run_id, ticket_id, output="...")
+await runner.fail_background_tool(run_id, ticket_id, error="...")
+```
+
+### RunnerConfig
+
+```python
+RunnerConfig(
+    interaction_mode: InteractionMode = "headless",  # "headless" | "interactive" | "external"
+    approval_timeout_s: float = 300.0,
+    input_timeout_s: float = 300.0,
+    approval_fallback: DecisionKind = "deny",
+    input_fallback: DecisionKind = "deny",
+    sanitize_tool_output: bool = True,
+    untrusted_tool_preamble: bool = True,
+    tool_output_max_chars: int = 12_000,
+    default_sandbox_profile: SandboxProfile | None = None,
+    sandbox_profile_provider: SandboxProfileProvider | None = None,
+    secret_scope_provider: SecretScopeProvider | None = None,
+    default_allowlisted_commands: tuple[str, ...] = ("ls", "cat", "head", "tail", "rg", "find", "pwd", "echo"),
+    max_parallel_subagents_global: int = 64,
+    max_parallel_subagents_per_parent: int = 8,
+    max_parallel_subagents_per_target_agent: int = 4,
+    subagent_queue_backpressure_limit: int = 512,
+    checkpoint_async_writes: bool = True,
+    checkpoint_queue_maxsize: int = 1024,
+    checkpoint_flush_timeout_s: float = 10.0,
+    checkpoint_coalesce_runtime_state: bool = True,
+    debug: bool = False,
+    debug_config: RunnerDebugConfig | None = None,
+    background_tools_enabled: bool = True,
+    background_tool_default_grace_s: float = 0.0,
+    background_tool_max_pending: int = 256,
+    background_tool_poll_interval_s: float = 0.5,
+    background_tool_result_ttl_s: float = 3600.0,
+    background_tool_interrupt_on_resolve: bool = True,
+)
+```
+
+---
+
+## Tool API
+
+### @tool Decorator
+
+```python
+from pydantic import BaseModel
+from afk.tools import tool, ToolContext
+
+class MyArgs(BaseModel):
+    query: str
+
+@tool(args_model=MyArgs, name="search", description="Search", timeout=30.0, raise_on_error=False)
+async def search(args: MyArgs, ctx: ToolContext):
+    return {"results": [...]}
+```
+
+Signatures: `(args)`, `(args, ctx)`, `(ctx, args)` -- sync or async.
+
+### ToolResult
+
+```python
+ToolResult(
+    output: ReturnT | None = None,
+    success: bool = True,
+    error_message: str | None = None,
+    tool_name: str | None = None,
+    metadata: dict[str, Any] = {},
+    tool_call_id: str | None = None,
+    deferred: ToolDeferredHandle | None = None,
+)
+```
+
+### ToolContext
+
+```python
+ToolContext(
+    request_id: str | None = None,
+    user_id: str | None = None,
+    metadata: dict[str, Any] = {},
+)
+```
+
+### ToolDeferredHandle (Background Tools)
+
+```python
+ToolDeferredHandle(
+    ticket_id: str,          # Required unique ID
+    tool_name: str,          # Required tool name
+    status: str = "pending", # pending | running | completed | failed
+    poll_after_s: float | None = None,
+    summary: str | None = None,
+    resume_hint: str | None = None,
+)
+```
+
+### Hooks
+
+```python
+@prehook(args_model=MyArgs)
+def sanitize(args: MyArgs): return {"query": args.query.strip()}
+
+@posthook(args_model=PostArgs)
+def redact(args: PostArgs): return args.output.replace("SECRET", "***")
+
+@middleware(name="timing")
+async def timing(call_next, args, ctx): return await call_next(args, ctx)
+```
+
+### ToolRegistry
+
+```python
+registry = ToolRegistry(max_concurrency=32, default_timeout=None, policy=None, middlewares=[...])
+registry.register(my_tool)
+result = await registry.call("search", {"query": "hello"}, ctx=ctx)
+results = await registry.call_many([("search", {"query": "a"}), ("calc", {"expr": "1+1"})])
+specs = registry.to_openai_function_tools()
+```
+
+### Error Hierarchy
+
+```
+AFKToolError
+├── ToolValidationError
+├── ToolExecutionError
+├── ToolTimeoutError
+├── ToolPolicyError
+├── ToolNotFoundError
+├── ToolAlreadyRegisteredError
+└── ToolPermissionError
+```
+
+---
+
+## LLM API
+
+### LLMBuilder
+
+```python
+llm = (
+    LLMBuilder()
+    .provider("litellm")         # "litellm" | "openai" | "anthropic"
+    .model("gpt-4.1-mini")
+    .settings(LLMSettings(...))
+    .profile("production")       # "development" | "production"
+    .with_middlewares([...])
+    .with_observers([...])
+    .with_cache(cache_instance)
+    .build()
+)
+```
+
+### LLMSettings
+
+```python
+LLMSettings(
+    default_provider: str = "litellm",    # AFK_LLM_PROVIDER
+    default_model: str = "gpt-4.1-mini",  # AFK_LLM_MODEL
+    embedding_model: str | None = None,    # AFK_EMBED_MODEL
+    api_base_url: str | None = None,       # AFK_LLM_API_BASE_URL
+    api_key: str | None = None,            # AFK_LLM_API_KEY
+    timeout_s: float = 30.0,               # AFK_LLM_TIMEOUT_S
+    max_retries: int = 3,                  # AFK_LLM_MAX_RETRIES
+    backoff_base_s: float = 0.5,           # AFK_LLM_BACKOFF_BASE_S
+    backoff_jitter_s: float = 0.15,        # AFK_LLM_BACKOFF_JITTER_S
+    json_max_retries: int = 2,             # AFK_LLM_JSON_MAX_RETRIES
+    max_input_chars: int = 200000,         # AFK_LLM_MAX_INPUT_CHARS
+    stream_idle_timeout_s: float = 45.0,   # AFK_LLM_STREAM_IDLE_TIMEOUT_S
+)
+
+# Load from environment
+settings = LLMSettings.from_env()
+```
+
+### Model Strings
+
+Pass models as strings to Agent(model=...):
+- OpenAI: "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "o3", "o4-mini"
+- Anthropic: "claude-sonnet-4-20250514", "claude-haiku-35-20241022"
+- Google: "gemini-2.5-flash", "gemini-2.5-pro"
+- Via LiteLLM: "anthropic/claude-sonnet-4-20250514", "openai/gpt-4.1"
+
+---
+
+## Memory API
+
+### Factory
+
+```python
+from afk.memory import create_memory_store
+
+# In-memory (testing)
+store = create_memory_store("memory")
+
+# SQLite (local persistence)
+store = create_memory_store("sqlite", database_path="./memory.db")
+
+# PostgreSQL (production)
+store = create_memory_store("postgres", connection_string="postgresql://...")
+
+# Redis (distributed)
+store = create_memory_store("redis", redis_url="redis://localhost:6379")
+
+await store.setup()  # Initialize (idempotent)
+```
+
+### MemoryStore ABC Methods
+
+```python
+await store.setup()
+await store.store(thread_id, messages)
+messages = await store.retrieve(thread_id, limit=50)
+await store.delete_thread(thread_id)
+threads = await store.list_threads(limit=100)
+await store.apply_retention(thread_id, max_messages=200, max_age_hours=72)
+await store.compact(thread_id, target_messages=50, compaction_model="gpt-4.1-mini")
+results = await store.search(thread_id, query="...", top_k=5)
+await store.teardown()
+```
+
+### Environment Variables
+
+- AFK_MEMORY_BACKEND: memory | sqlite | postgres | redis
+- AFK_MEMORY_SQLITE_PATH: SQLite file path
+- AFK_MEMORY_POSTGRES_URL: PostgreSQL connection string
+- AFK_MEMORY_REDIS_URL: Redis URL
+
+---
+
+## Streaming API
+
+### AgentStreamHandle
+
+```python
+handle = await runner.run_stream(agent, user_message="...")
+
+# Iterate events
+async for event in handle:
+    match event.type:
+        case "text_delta": print(event.text_delta, end="")
+        case "tool_started": print(f"Tool: {event.tool_name}")
+        case "completed": print(f"Done: {event.result.state}")
+
+# Or collect text
+text = await handle.collect_text()
+result = handle.result
+```
+
+### Event Types
+
+text_delta, tool_started, tool_completed, tool_deferred, tool_background_resolved,
+tool_background_failed, step_started, step_completed, status_update, run_event,
+completed, error
+
+### AgentRunHandle (Lifecycle Control)
+
+```python
+handle = await runner.run_handle(agent, user_message="...")
+async for event in handle.events: ...
+await handle.pause()
+await handle.resume()
+await handle.cancel()
+await handle.interrupt()
+result = await handle.await_result()
+```
+
+---
+
+## Interaction API
+
+### InteractionProvider Protocol
+
+```python
+class InteractionProvider(Protocol):
+    async def request_approval(self, request: ApprovalRequest) -> ApprovalDecision | DeferredDecision: ...
+    async def request_user_input(self, request: UserInputRequest) -> UserInputDecision | DeferredDecision: ...
+    async def await_deferred(self, token: str, *, timeout_s: float) -> Decision | None: ...
+    async def notify(self, event: AgentRunEvent) -> None: ...
+```
+
+### Built-in Providers
+
+- HeadlessInteractionProvider(approval_fallback="deny", input_fallback="deny")
+- InMemoryInteractiveProvider() -- for testing
+
+### Decision Types
+
+- ApprovalDecision(kind="allow"|"deny"|"defer", reason=None)
+- UserInputDecision(kind="allow"|"deny"|"defer", value=None, reason=None)
+- DeferredDecision(token="...", message=None)
+
+---
+
+## Policy API
+
+### PolicyEngine
+
+```python
+from afk.agents.policy import PolicyEngine, PolicyRule, PolicyRuleCondition
+
+engine = PolicyEngine(rules=[
+    PolicyRule(
+        rule_id="block_network",
+        action="deny",                # "allow" | "deny" | "request_approval" | "request_user_input" | "modify_args"
+        priority=200,                 # Higher = evaluated first
+        subjects=["tool_call"],       # "llm_call" | "tool_call" | "subagent_call" | "interaction" | "any"
+        condition=PolicyRuleCondition(
+            tool_name_pattern="web_*",
+        ),
+        reason="Network tools blocked",
+    ),
+])
+
+evaluation = engine.evaluate(event)  # -> PolicyEvaluation
+evaluation.decision.action           # "allow", "deny", etc.
+```
+
+### PolicyRuleCondition Fields
+
+event_type, tool_name, tool_name_pattern, subagent_name, context_equals, context_has_keys, metadata_equals
+
+### SandboxProfile
+
+```python
+SandboxProfile(
+    profile_id: str = "default",
+    allow_network: bool = False,
+    allow_command_execution: bool = True,
+    allowed_command_prefixes: list[str] = [],
+    deny_shell_operators: bool = True,
+    allowed_paths: list[str] = [],
+    denied_paths: list[str] = [],
+    command_timeout_s: float | None = None,
+    max_output_chars: int = 20_000,
+)
+```
+
+---
+
+## Multi-Agent API
+
+### Subagents
+
+```python
+specialist = Agent(model="gpt-4.1-mini", name="specialist", instructions="...")
+lead = Agent(model="gpt-4.1", subagents=[specialist], instructions="Delegate to specialist.")
+```
+
+### Concurrency Controls (RunnerConfig)
+
+- max_parallel_subagents_global: 64
+- max_parallel_subagents_per_parent: 8
+- max_parallel_subagents_per_target_agent: 4
+- subagent_queue_backpressure_limit: 512
+
+---
+
+## Eval API
+
+### EvalCase
+
+```python
+EvalCase(
+    case_id: str,
+    input: str,
+    expected_output: str | None = None,
+    assertions: list[dict] = [],  # {"type": "contains", "value": "..."} etc.
+    tags: list[str] = [],
+)
+```
+
+### EvalSuite
+
+```python
+suite = EvalSuite(
+    suite_id: str,
+    cases: list[EvalCase],
+    budget: BudgetConfig | None = None,
+)
+
+BudgetConfig(max_steps=10, timeout_s=60.0, max_cost_usd=1.0)
+```
+
+---
+
+## Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| AFK_LLM_PROVIDER | litellm | LLM provider |
+| AFK_LLM_MODEL | gpt-4.1-mini | Default model |
+| AFK_EMBED_MODEL | (none) | Embedding model |
+| AFK_LLM_API_BASE_URL | (none) | Custom API endpoint |
+| AFK_LLM_API_KEY | (none) | API key |
+| AFK_LLM_TIMEOUT_S | 30 | Request timeout |
+| AFK_LLM_MAX_RETRIES | 3 | Max retry attempts |
+| AFK_LLM_BACKOFF_BASE_S | 0.5 | Retry backoff base |
+| AFK_LLM_BACKOFF_JITTER_S | 0.15 | Retry jitter |
+| AFK_LLM_JSON_MAX_RETRIES | 2 | JSON parse retries |
+| AFK_LLM_MAX_INPUT_CHARS | 200000 | Input char limit |
+| AFK_LLM_STREAM_IDLE_TIMEOUT_S | 45 | Stream idle timeout |
+| AFK_MEMORY_BACKEND | memory | Memory backend |
+| AFK_MEMORY_SQLITE_PATH | (none) | SQLite path |
+| AFK_MEMORY_POSTGRES_URL | (none) | Postgres URL |
+| AFK_MEMORY_REDIS_URL | (none) | Redis URL |
+
+---
+
+## Common Patterns
+
+### Minimal Agent
+```python
+from afk.agents import Agent, Runner
+result = Runner().run_sync(Agent(model="gpt-4.1-mini", instructions="Help."), user_message="Hi")
+```
+
+### Tool + Agent
+```python
+@tool(args_model=Args)
+async def my_tool(args): return "result"
+agent = Agent(model="gpt-4.1-mini", tools=[my_tool])
+```
+
+### Memory
+```python
+store = create_memory_store("sqlite", database_path="./db.sqlite")
+await store.setup()
+runner = Runner(memory_store=store)
+result = await runner.run(agent, user_message="Hi", thread_id="t1")
+```
+
+### Streaming
+```python
+handle = await runner.run_stream(agent, user_message="Hi")
+async for e in handle:
+    if e.type == "text_delta": print(e.text_delta, end="")
+```
+
+---
+
+## Documentation Links
+
+- Web: https://afk.arpan.sh
+- Agents: https://afk.arpan.sh/library/agents
+- Tools: https://afk.arpan.sh/library/tools
+- Memory: https://afk.arpan.sh/library/memory
+- A2A: https://afk.arpan.sh/library/a2a
+- MCP: https://afk.arpan.sh/library/mcp
+- Full reference: https://afk.arpan.sh/library/full-module-reference
+
+## Source Paths
+
+- Agent: src/afk/agents/core/base.py
+- Runner: src/afk/core/runner/api.py
+- RunnerConfig: src/afk/core/runner/types.py
+- Tool base: src/afk/tools/core/base.py
+- Tool decorator: src/afk/tools/core/decorator.py
+- Tool registry: src/afk/tools/registry.py
+- LLM builder: src/afk/llms/builder.py
+- LLM settings: src/afk/llms/settings.py
+- Memory store: src/afk/memory/store.py
+- Memory factory: src/afk/memory/factory.py
+- Streaming: src/afk/core/streaming.py
+- Interaction: src/afk/core/interaction.py
+- Policy: src/afk/agents/policy/engine.py
+- Security: src/afk/tools/security.py
+- Evals: src/afk/evals/

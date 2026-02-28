@@ -6,9 +6,9 @@ import pytest
 
 import afk.memory as memory_api
 import afk.memory.adapters as memory_store_api
-from afk.memory.types import LongTermMemory, MemoryEvent
-from afk.memory.store import MemoryStore
 from afk.memory.adapters import InMemoryMemoryStore, SQLiteMemoryStore
+from afk.memory.store import MemoryStore
+from afk.memory.types import LongTermMemory, MemoryEvent
 
 
 def run_async(coro):
@@ -17,10 +17,10 @@ def run_async(coro):
 
 def test_memory_module_getattr_errors_for_unknown_attr():
     with pytest.raises(AttributeError):
-        getattr(memory_api, "DoesNotExist")
+        memory_api.DoesNotExist
 
     with pytest.raises(AttributeError):
-        getattr(memory_store_api, "DoesNotExist")
+        memory_store_api.DoesNotExist
 
 
 def test_memory_store_capabilities_are_exposed():

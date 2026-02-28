@@ -9,8 +9,9 @@ Agent-to-agent communication contracts.
 from __future__ import annotations
 
 import time
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from typing import AsyncIterator, Literal, Protocol
+from typing import Literal, Protocol
 
 from ..llms.types import JSONValue
 

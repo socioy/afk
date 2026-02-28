@@ -30,7 +30,7 @@ class UsageAggregate:
     output_tokens: int = 0
     total_tokens: int = 0
 
-    def add_usage(self, usage: Usage) -> "UsageAggregate":
+    def add_usage(self, usage: Usage) -> UsageAggregate:
         """
         Return a new aggregate with additional usage applied.
 
@@ -160,7 +160,7 @@ class AgentResult:
 
     run_id: str
     thread_id: str
-    state: "AgentState"
+    state: AgentState
     final_text: str
     requested_model: str | None = None
     normalized_model: str | None = None

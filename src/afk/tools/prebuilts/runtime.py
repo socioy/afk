@@ -8,7 +8,7 @@ General runtime-safe filesystem tools.
 
 from __future__ import annotations
 
-
+import asyncio
 from pathlib import Path
 from typing import Any
 
@@ -64,7 +64,7 @@ def build_runtime_tools(*, root_dir: Path) -> list[Tool[Any, Any]]:
             raise FileAccessError(f"Directory not found: {args.path}")
 
         entries = []
-        for row in sorted(target.iterdir()):
+        for row in await asyncio.to_thread(lambda: sorted(target.iterdir())):
             entries.append(
                 {
                     "name": row.name,
@@ -93,7 +93,7 @@ def build_runtime_tools(*, root_dir: Path) -> list[Tool[Any, Any]]:
         _ensure_inside(target, root)
         if not target.exists() or not target.is_file():
             raise FileAccessError(f"File not found: {args.path}")
-        text = target.read_text(encoding="utf-8")
+        text = await asyncio.to_thread(target.read_text, encoding="utf-8")
         truncated = len(text) > args.max_chars
         if truncated:
             text = text[: args.max_chars]

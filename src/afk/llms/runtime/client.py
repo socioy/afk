@@ -172,9 +172,6 @@ class LLMClient:
         """Execute one non-streaming call against a specific provider id."""
         transport = self._get_transport(provider_id)
 
-        if req.route_policy is not None:
-            pass
-
         await self._rate_limiter.acquire(
             f"{provider_id}:chat",
             self._rate_limit_policy,
@@ -222,16 +219,16 @@ class LLMClient:
             raise LLMError("No providers available for request")
 
         cache_policy = req.cache_policy or self._cache_policy
-        cache_key = self._cache_key(providers[0], req)
+        primary_cache_key = self._cache_key(providers[0], req)
         if cache_policy.enabled:
-            cached = await self._cache.get(cache_key)
+            cached = await self._cache.get(primary_cache_key)
             if cached is not None:
                 return cached
 
         async def _call_primary() -> LLMResponse:
             if self._coalescing_policy.enabled:
                 return await self._coalescer.run(
-                    cache_key,
+                    primary_cache_key,
                     lambda: self._call_one(
                         providers[0], req, response_model=response_model
                     ),
@@ -250,6 +247,7 @@ class LLMClient:
                 providers[1], secondary_req, response_model=response_model
             )
 
+        result_provider = providers[0]
         try:
             if self._hedging_policy.enabled and len(providers) > 1:
                 result = await run_with_hedge(
@@ -265,6 +263,7 @@ class LLMClient:
                     result = await self._call_one(
                         provider_id, req, response_model=response_model
                     )
+                    result_provider = provider_id
                     break
                 except Exception:
                     continue
@@ -272,6 +271,7 @@ class LLMClient:
                 raise
 
         if cache_policy.enabled:
+            cache_key = self._cache_key(result_provider, req)
             await self._cache.set(cache_key, result, ttl_s=cache_policy.ttl_s)
         return result
 

@@ -1,16 +1,16 @@
 from .base import (
+    Middleware,
+    PostHook,
+    PreHook,
     Tool,
     ToolContext,
-    ToolResult,
     ToolDeferredHandle,
-    ToolSpec,
-    PreHook,
-    PostHook,
-    Middleware,
     ToolFn,
+    ToolResult,
+    ToolSpec,
     as_async,
 )
-from .decorator import tool, prehook, posthook, middleware, registry_middleware
+from .decorator import middleware, posthook, prehook, registry_middleware, tool
 from .errors import (
     ToolAlreadyRegisteredError,
     ToolExecutionError,

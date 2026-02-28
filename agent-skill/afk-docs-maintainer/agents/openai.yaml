@@ -1,4 +1,0 @@
-interface:
-  display_name: "AFK Docs Maintainer"
-  short_description: "Maintain AFK docs quality and structure."
-  default_prompt: "Use $afk-docs-maintainer to update AFK docs with clean structure and no duplication."

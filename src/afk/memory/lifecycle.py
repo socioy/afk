@@ -8,13 +8,12 @@ Memory lifecycle helpers for retention and compaction.
 
 from __future__ import annotations
 
-
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any
 
-from .types import JsonValue, MemoryEvent
 from .store import MemoryStore
+from .types import JsonValue, MemoryEvent
 
 
 @dataclass(frozen=True, slots=True)
@@ -135,15 +134,18 @@ def apply_event_retention(
     """
     if not events:
         return []
+    if policy.max_events_per_thread <= 0:
+        return []
 
+    keep_types = set(policy.keep_event_types)
     preserved: list[MemoryEvent] = [
-        event for event in events if event.type in set(policy.keep_event_types)
+        event for event in events if event.type in keep_types
     ]
     if len(preserved) >= policy.max_events_per_thread:
         return preserved[-policy.max_events_per_thread :]
 
     remainder = [
-        event for event in events if event.type not in set(policy.keep_event_types)
+        event for event in events if event.type not in keep_types
     ]
     budget = policy.max_events_per_thread - len(preserved)
     return sorted([*preserved, *remainder[-budget:]], key=lambda event: event.timestamp)

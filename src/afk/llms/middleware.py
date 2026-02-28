@@ -8,9 +8,9 @@ Module defining middleware protocols and stack for LLM.
 
 from __future__ import annotations
 
-
+from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
-from typing import AsyncIterator, Awaitable, Callable, Protocol
+from typing import Protocol
 
 from .types import (
     EmbeddingRequest,
@@ -19,7 +19,6 @@ from .types import (
     LLMResponse,
     LLMStreamEvent,
 )
-
 
 LLMChatNext = Callable[[LLMRequest], Awaitable[LLMResponse]]
 LLMEmbedNext = Callable[[EmbeddingRequest], Awaitable[EmbeddingResponse]]

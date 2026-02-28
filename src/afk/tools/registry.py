@@ -11,12 +11,12 @@ registry-level middlewares (wrap ALL tools), and exporting tool specs to LLM too
 
 from __future__ import annotations
 
-
 import asyncio
 import inspect
 import time
+from collections.abc import Awaitable, Callable, Iterable, Sequence
 from dataclasses import dataclass
-from typing import Any, Awaitable, Callable, Dict, Iterable, List, Optional, Sequence
+from typing import Any
 
 try:
     # Python 3.10+
@@ -24,8 +24,9 @@ try:
 except Exception:  # pragma: no cover
     import importlib_metadata  # type: ignore
 
-from .core.base import Tool, ToolContext, ToolResult, ToolSpec, as_async
+import builtins
 
+from .core.base import Tool, ToolContext, ToolResult, ToolSpec, as_async
 from .core.errors import (
     ToolAlreadyRegisteredError,
     ToolNotFoundError,
@@ -33,7 +34,7 @@ from .core.errors import (
     ToolTimeoutError,
 )
 
-ToolPolicy = Callable[[str, Dict[str, Any], ToolContext], None]
+ToolPolicy = Callable[[str, dict[str, Any], ToolContext], None]
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,14 +43,14 @@ class ToolCallRecord:
     started_at_s: float
     ended_at_s: float
     ok: bool
-    error: Optional[str] = None
-    tool_call_id: Optional[str] = None
+    error: str | None = None
+    tool_call_id: str | None = None
 
 
 # ---------- Registry-level middleware types ----------
 
 RegistryCallNext = Callable[
-    [Tool[Any, Any], Dict[str, Any], ToolContext, Optional[float], Optional[str]],
+    [Tool[Any, Any], dict[str, Any], ToolContext, float | None, str | None],
     Awaitable[ToolResult[Any]],
 ]
 RegistryMiddlewareFn = Callable[..., Any]  # sync or async; we wrap via as_async
@@ -118,7 +119,7 @@ class RegistryMiddleware:
         self,
         call_next: RegistryCallNext,
         tool: Tool[Any, Any],
-        raw_args: Dict[str, Any],
+        raw_args: dict[str, Any],
         ctx: ToolContext,
         timeout: float | None,
         tool_call_id: str | None,
@@ -139,7 +140,7 @@ class RegistryMiddleware:
 
         def call_next_sync(
             t: Tool[Any, Any],
-            a: Dict[str, Any],
+            a: dict[str, Any],
             c: ToolContext,
             to: float | None,
             tcid: str | None,
@@ -192,17 +193,17 @@ class ToolRegistry:
         enable_plugins: bool = False,
         plugin_entry_point_group: str = "afk.tools",
         allow_overwrite_plugins: bool = False,
-        middlewares: Optional[List[RegistryMiddleware | RegistryMiddlewareFn]] = None,
+        middlewares: builtins.list[RegistryMiddleware | RegistryMiddlewareFn] | None = None,
     ) -> None:
         if max_concurrency < 1:
             raise ValueError("max_concurrency must be >= 1")
 
-        self._tools: Dict[str, Tool[Any, Any]] = {}
+        self._tools: dict[str, Tool[Any, Any]] = {}
         self._sem = asyncio.Semaphore(max_concurrency)
         self._default_timeout = default_timeout
         self._policy = policy
-        self._records: List[ToolCallRecord] = []
-        self._middlewares: List[RegistryMiddleware] = []
+        self._records: list[ToolCallRecord] = []
+        self._middlewares: list[RegistryMiddleware] = []
 
         if middlewares:
             for mw in middlewares:
@@ -239,10 +240,10 @@ class ToolRegistry:
         except KeyError as e:
             raise ToolNotFoundError(f"Unknown tool: {name}") from e
 
-    def list(self) -> List[Tool[Any, Any]]:
+    def list(self) -> builtins.list[Tool[Any, Any]]:
         return list(self._tools.values())
 
-    def names(self) -> List[str]:
+    def names(self) -> builtins.list[str]:
         return list(self._tools.keys())
 
     def has(self, name: str) -> bool:
@@ -298,7 +299,7 @@ class ToolRegistry:
             self._middlewares.append(RegistryMiddleware(mw))
 
     def set_middlewares(
-        self, mws: List[RegistryMiddleware | RegistryMiddlewareFn]
+        self, mws: builtins.list[RegistryMiddleware | RegistryMiddlewareFn]
     ) -> None:
         self._middlewares = []
         for mw in mws:
@@ -307,7 +308,7 @@ class ToolRegistry:
     def clear_middlewares(self) -> None:
         self._middlewares = []
 
-    def list_middlewares(self) -> List[str]:
+    def list_middlewares(self) -> builtins.list[str]:
         return [mw.name for mw in self._middlewares]
 
     # ''''''''''''''''''''''''''''''''''''''
@@ -317,7 +318,7 @@ class ToolRegistry:
     async def call(
         self,
         name: str,
-        raw_args: Dict[str, Any],
+        raw_args: dict[str, Any],
         *,
         ctx: ToolContext | None = None,
         timeout: float | None = None,
@@ -358,7 +359,7 @@ class ToolRegistry:
 
             async def _core_call(
                 t: Tool[Any, Any],
-                a: Dict[str, Any],
+                a: dict[str, Any],
                 c: ToolContext,
                 to: float | None,
                 tcid: str | None,
@@ -374,7 +375,7 @@ class ToolRegistry:
                         t.call(a, ctx=c, timeout=None, tool_call_id=tcid),
                         timeout=to,
                     )
-                except asyncio.TimeoutError as e:
+                except TimeoutError as e:
                     raise ToolTimeoutError(
                         f"Tool '{t.spec.name}' timed out after {to} seconds."
                     ) from e
@@ -386,7 +387,7 @@ class ToolRegistry:
 
                 async def _wrapped(
                     t: Tool[Any, Any],
-                    a: Dict[str, Any],
+                    a: dict[str, Any],
                     c: ToolContext,
                     to: float | None,
                     tcid: str | None,
@@ -429,13 +430,13 @@ class ToolRegistry:
 
     async def call_many(
         self,
-        calls: Sequence[tuple[str, Dict[str, Any]]],
+        calls: Sequence[tuple[str, dict[str, Any]]],
         *,
         ctx: ToolContext | None = None,
         timeout: float | None = None,
         tool_call_id_prefix: str | None = None,
         return_exceptions: bool = False,
-    ) -> List[ToolResult[Any] | Exception]:
+    ) -> builtins.list[ToolResult[Any] | Exception]:
         """
         Execute multiple tool calls concurrently (bounded by registry semaphore).
 
@@ -446,7 +447,7 @@ class ToolRegistry:
         """
         ctx = ctx or ToolContext()
 
-        async def _one(i: int, n: str, a: Dict[str, Any]) -> ToolResult[Any]:
+        async def _one(i: int, n: str, a: dict[str, Any]) -> ToolResult[Any]:
             tcid = f"{tool_call_id_prefix}:{i}" if tool_call_id_prefix else None
             return await self.call(n, a, ctx=ctx, timeout=timeout, tool_call_id=tcid)
 
@@ -458,17 +459,17 @@ class ToolRegistry:
     # Observability
     # ''''''''''''''''''''''''''''''''''''''
 
-    def recent_calls(self, limit: int = 100) -> List[ToolCallRecord]:
+    def recent_calls(self, limit: int = 100) -> builtins.list[ToolCallRecord]:
         return self._records[-limit:]
 
     # ''''''''''''''''''''''''''''''''''''''
     # Export / specs
     # ''''''''''''''''''''''''''''''''''''''
 
-    def specs(self) -> List[ToolSpec]:
+    def specs(self) -> builtins.list[ToolSpec]:
         return [t.spec for t in self._tools.values()]
 
-    def to_openai_function_tools(self) -> List[Dict[str, Any]]:
+    def to_openai_function_tools(self) -> builtins.list[dict[str, Any]]:
         """
         Export registry tools in OpenAI function-tool format:
         [
@@ -480,7 +481,7 @@ class ToolRegistry:
 
         return to_openai_tools(self._tools.values())
 
-    def list_tool_summaries(self) -> List[Dict[str, Any]]:
+    def list_tool_summaries(self) -> builtins.list[dict[str, Any]]:
         """
         Lightweight listing for UIs / debugging.
         """
