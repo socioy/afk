@@ -1,0 +1,7 @@
+[project]
+name = "29-system-monitor"
+version = "0.1.0"
+description = "A system monitoring agent demonstrating TelemetrySink for observability into agent execution"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = []
