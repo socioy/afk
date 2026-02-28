@@ -9,7 +9,7 @@ This module defines the types and base classes for tools that can be registered 
 from __future__ import annotations
 
 import asyncio
-import functools
+
 import inspect
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -103,7 +103,7 @@ def as_async(fn: ToolFn) -> AsyncToolFn:
 
     async def _wrapped(*args: Any, **kwargs: Any) -> Any:
         # run sync function in threadpool
-        return await asyncio.to_thread(functools.partial(fn, *args, **kwargs))
+        return await asyncio.to_thread(fn, *args, **kwargs)
 
     return _wrapped
 

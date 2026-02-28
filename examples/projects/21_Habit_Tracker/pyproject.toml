@@ -1,0 +1,7 @@
+[project]
+name = "21-habit-tracker"
+version = "0.1.0"
+description = "A habit tracker agent demonstrating SQLiteMemoryStore for persistent data"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = []

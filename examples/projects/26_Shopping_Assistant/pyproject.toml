@@ -1,0 +1,7 @@
+[project]
+name = "26-shopping-assistant"
+version = "0.1.0"
+description = "A shopping assistant demonstrating context_defaults and inherit_context_keys for subagent context propagation"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = []

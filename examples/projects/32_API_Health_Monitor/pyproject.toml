@@ -1,0 +1,7 @@
+[project]
+name = "32-api-health-monitor"
+version = "0.1.0"
+description = "An API health monitor demonstrating LLMClient with retry, timeout, and circuit breaker policies"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = []

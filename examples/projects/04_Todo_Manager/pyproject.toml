@@ -1,0 +1,7 @@
+[project]
+name = "04-todo-manager"
+version = "0.1.0"
+description = "A stateful todo manager agent with CRUD tools"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = []

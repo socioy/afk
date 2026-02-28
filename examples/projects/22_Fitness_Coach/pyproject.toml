@@ -1,0 +1,7 @@
+[project]
+name = "22-fitness-coach"
+version = "0.1.0"
+description = "A fitness coach agent demonstrating tool prehooks and posthooks"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = []

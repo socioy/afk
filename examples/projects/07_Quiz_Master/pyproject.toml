@@ -1,0 +1,7 @@
+[project]
+name = "07-quiz-master"
+version = "0.1.0"
+description = "A trivia quiz game agent with score tracking"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = []

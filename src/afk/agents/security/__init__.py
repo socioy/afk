@@ -45,8 +45,10 @@ def sanitize_text(text: str, *, max_chars: int) -> str:
     for pattern in _SUSPICIOUS_PATTERNS:
         value = pattern.sub("[redacted]", value)
     if len(value) > max_chars:
-        clipped = value[:max_chars]
-        value = f"{clipped}... [truncated {len(value) - max_chars} chars]"
+        overflow = len(value) - max_chars
+        suffix = f"... [truncated {overflow} chars]"
+        available = max(0, max_chars - len(suffix))
+        value = f"{value[:available]}{suffix}"
     return value
 
 

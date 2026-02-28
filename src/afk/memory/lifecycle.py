@@ -331,7 +331,7 @@ async def compact_thread_memory(
             await memory.delete_state(thread_id, key)
             removed_effective += 1
         except NotImplementedError:
-            break
+            continue
 
     return MemoryCompactionResult(
         events_before=len(events),
@@ -353,14 +353,17 @@ def _safe_int(value: Any) -> int | None:
     """Safely convert `value` to an `int` when possible, otherwise return
     `None`.
 
-    Accepts ints, floats and digit-only strings (whitespace is allowed).
+    Accepts ints, floats and numeric strings (including negatives).
     """
     if isinstance(value, int):
         return value
     if isinstance(value, float):
         return int(value)
-    if isinstance(value, str) and value.strip().isdigit():
-        return int(value.strip())
+    if isinstance(value, str):
+        try:
+            return int(value.strip())
+        except ValueError:
+            return None
     return None
 
 

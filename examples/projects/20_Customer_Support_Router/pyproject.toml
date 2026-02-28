@@ -1,0 +1,7 @@
+[project]
+name = "20-customer-support-router"
+version = "0.1.0"
+description = "A customer support system demonstrating SubagentRouter for dynamic routing"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = []

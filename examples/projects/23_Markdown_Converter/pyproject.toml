@@ -1,0 +1,7 @@
+[project]
+name = "23-markdown-converter"
+version = "0.1.0"
+description = "A markdown converter agent demonstrating tool-level and registry-level middleware"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = []

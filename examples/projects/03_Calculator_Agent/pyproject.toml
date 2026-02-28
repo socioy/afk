@@ -1,0 +1,7 @@
+[project]
+name = "03-calculator-agent"
+version = "0.1.0"
+description = "A calculator agent with multiple math tools"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = []
