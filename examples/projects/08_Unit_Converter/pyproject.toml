@@ -1,0 +1,7 @@
+[project]
+name = "08-unit-converter"
+version = "0.1.0"
+description = "A unit converter agent demonstrating ToolContext usage"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = []

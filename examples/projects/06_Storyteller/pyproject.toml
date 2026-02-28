@@ -1,7 +1,7 @@
 [project]
-name = "02-weather-agent"
+name = "06-storyteller"
 version = "0.1.0"
-description = "An agent that checks weather using tools"
+description = "An async storyteller agent using the async Runner API"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = []
