@@ -1,0 +1,7 @@
+[project]
+name = "13-bookmark-manager"
+version = "0.1.0"
+description = "A bookmark manager agent with RunnerConfig and debug mode"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = []

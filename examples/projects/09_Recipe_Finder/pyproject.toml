@@ -1,0 +1,7 @@
+[project]
+name = "09-recipe-finder"
+version = "0.1.0"
+description = "A recipe finder agent demonstrating ToolRegistry usage"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = []
