@@ -201,8 +201,27 @@ def run_sync(coro):
         # If this succeeds, we're inside a running event loop context.
         asyncio.get_running_loop()
     except RuntimeError:
-        # No running loop in this thread => safe to use asyncio.run
-        return asyncio.run(coro)
+        # No running loop in this thread => safe to run a private loop.
+        #
+        # Prefer asyncio.Runner/asyncio.run, but keep a manual loop fallback
+        # for environments where Runner internals surface
+        # RuntimeError("no running event loop") during shutdown/teardown.
+        try:
+            return asyncio.run(coro)
+        except RuntimeError as e:
+            if "no running event loop" not in str(e).lower():
+                raise
+
+            loop = asyncio.new_event_loop()
+            try:
+                asyncio.set_event_loop(loop)
+                return loop.run_until_complete(coro)
+            finally:
+                try:
+                    loop.run_until_complete(loop.shutdown_asyncgens())
+                finally:
+                    asyncio.set_event_loop(None)
+                    loop.close()
 
     # If we got here, we are in a running loop (can't nest asyncio.run).
     raise RuntimeError(
