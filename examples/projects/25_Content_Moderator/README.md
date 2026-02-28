@@ -1,28 +1,34 @@
 
 # Content Moderator
 
-A content moderation agent that uses PolicyEngine with PolicyRule to gate tool calls based on content patterns. The agent analyzes posts and publishes, flags, or rejects them, with declarative policy rules enforcing hard guardrails around the publish_post tool.
+A content moderation agent combining static PolicyEngine rules with dynamic PolicyRole callbacks for two-layer policy enforcement.
+
+## Project Structure
+
+```
+25_Content_Moderator/
+  main.py       # Entry point — agent with both PolicyEngine and PolicyRoles
+  tools.py      # Tool definitions and simulated data
+  policy.py     # Static PolicyEngine rules + 3 dynamic PolicyRole callbacks
+```
+
+## Key Concepts
+
+- **PolicyEngine + PolicyRule**: Static, declarative rules evaluated by priority. Use `context_equals` to match.
+- **PolicyRole**: `(event: PolicyEvent) -> PolicyDecision` callbacks for dynamic runtime decisions
+- **PolicyDecision actions**: `allow`, `deny`, `defer`, `rewrite` (modifies tool_args before execution)
+- **Stacking**: PolicyEngine runs first, then each PolicyRole. ANY deny blocks the action.
 
 Prerequisites
 - Run this from the repository root.
 - Ensure scripts/setup_example.sh is executable: chmod +x scripts/setup_example.sh
 
 Usage
-- Run (relative):
-  ./scripts/setup_example.sh --project-dir=examples/projects/25_Content_Moderator
-
-- Run (absolute):
-  ./scripts/setup_example.sh --project-dir=/Users/username/pathtoafk/examples/projects/25_Content_Moderator
-
-Tip: build the absolute path dynamically from the repo root:
+- Run:
   ./scripts/setup_example.sh --project-dir=$(pwd)/examples/projects/25_Content_Moderator
 
 Expected interaction
-User: Please moderate this post by alice: "Just had the most amazing sunset hike today!"
-Agent: [Analyzes content] Content is clean. [Publishes post] Post published successfully!
-User: Moderate this: "This GUARANTEED miracle cure will solve all your problems!"
-Agent: [Analyzes content] Flaggable keywords found. [Flags content] Content flagged for review.
-User: Moderate: "Stop the violence and hate!"
-Agent: [Analyzes content] Sensitive keywords found. [Rejects content] Content rejected.
-
-The PolicyEngine gates publish_post based on declarative rules — deny for flagged/rejected content, defer for sensitive categories, allow by default.
+User: Moderate this post by alice: "Just had the most amazing sunset hike today!"
+Agent: [Analyzes] Clean. [Publishes] Post published successfully!
+User: Moderate: "This GUARANTEED miracle cure will fix everything!"
+Agent: [Analyzes] Flaggable keywords. [Flags] Content flagged for review.
