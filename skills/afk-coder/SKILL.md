@@ -1,20 +1,6 @@
 ---
 name: afk-coder
 description: Build production-grade AI agents with the AFK Python library. Covers Agent declaration, Runner execution, tools, memory, streaming, policies, multi-agent delegation, LLM configuration, and evaluation.
-license: MIT
-compatibility:
-  - name: claude
-    version: ">=3.5"
-  - name: gpt
-    version: ">=4"
-  - name: gemini
-    version: ">=2"
-metadata:
-  version: "0.1.0"
-  target_library: afk-py
-  python_version: ">=3.13"
-  docs_url: https://afk.arpan.sh
-  source_url: https://github.com/arpan404/afk-py
 ---
 
 # AFK Coder Skill

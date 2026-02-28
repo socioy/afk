@@ -1,5 +1,5 @@
 ---
-name: maintainer
+name: afk-maintainer
 description: Governance skill for the AFK framework. Enforces coding principles, DX-first design, extensibility patterns, production safety, and library quality standards across every contribution. Use this skill when reviewing PRs, triaging issues,planning releases, or making architectural decisions for AFK.
 ---
 
