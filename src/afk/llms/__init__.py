@@ -98,14 +98,53 @@ def create_llm_client(
     provider_settings: dict[str, dict] | None = None,
     middlewares: MiddlewareStack | None = None,
     observers: list[LLMObserver] | None = None,
+    router=None,
+    retry_policy: "RetryPolicy | None" = None,
+    timeout_policy: "TimeoutPolicy | None" = None,
+    rate_limit_policy: "RateLimitPolicy | None" = None,
+    circuit_breaker_policy: "CircuitBreakerPolicy | None" = None,
+    hedging_policy: "HedgingPolicy | None" = None,
+    cache_policy: "CachePolicy | None" = None,
+    coalescing_policy: "CoalescingPolicy | None" = None,
 ) -> LLMClient:
-    """Create enterprise runtime client with explicit provider selection."""
+    """Create enterprise runtime client with explicit provider selection.
+
+    Args:
+        provider: Provider id (e.g., "openai", "anthropic_agent", "litellm")
+        settings: LLMSettings instance (defaults to env)
+        provider_settings: Per-provider API keys/URLs
+        middlewares: MiddlewareStack for transport paths
+        observers: LLM lifecycle observers
+        router: LLMRouter for multi-provider fallback
+        retry_policy: Retry policy for transient failures
+        timeout_policy: Request/stream timeout policy
+        rate_limit_policy: Rate limiting policy
+        circuit_breaker_policy: Circuit breaker for fault isolation
+        hedging_policy: Tail latency hedging (fires duplicate requests)
+        cache_policy: Response caching policy
+        coalescing_policy: Request coalescing for identical payloads
+
+    Example:
+        # Use hedging for latency-sensitive applications
+        client = create_llm_client(
+            provider="openai",
+            hedging_policy=HedgingPolicy(enabled=True, delay_s=0.1),
+        )
+    """
     return LLMClient(
         provider=provider,
         settings=settings or LLMSettings.from_env(),
         provider_settings=provider_settings,
         middlewares=middlewares,
         observers=observers,
+        router=router,
+        retry_policy=retry_policy,
+        timeout_policy=timeout_policy,
+        rate_limit_policy=rate_limit_policy,
+        circuit_breaker_policy=circuit_breaker_policy,
+        hedging_policy=hedging_policy,
+        cache_policy=cache_policy,
+        coalescing_policy=coalescing_policy,
     )
 
 

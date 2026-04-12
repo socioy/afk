@@ -38,6 +38,86 @@
 
 ---
 
+## Hedging Policy (Tail Latency)
+
+Enable hedging to fire duplicate requests after a delay for latency-sensitive applications:
+
+```python
+from afk.llms import create_llm_client, HedgingPolicy
+
+# Enable hedging - fires backup request after delay_s
+client = create_llm_client(
+    provider="openai",
+    hedging_policy=HedgingPolicy(enabled=True, delay_s=0.1),
+)
+```
+
+Or via LLMBuilder:
+
+```python
+from afk.llms import LLMBuilder
+
+client = (
+    LLMBuilder()
+    .provider("openai")
+    .profile("low_latency")  # includes hedging enabled
+    .build()
+)
+```
+
+Environment variable support:
+
+```bash
+# Not automatically wired - use code for now
+export AFK_LLM_HEDGING_DELAY_S="0.1"
+```
+
+---
+
+## Per-Tool Circuit Breaker (Advanced)
+
+You can configure per-tool circuit breakers for fault isolation. This allows failing tools to be isolated without affecting other tools:
+
+```python
+from afk.llms import LLMClient, CircuitBreakerPolicy
+
+# Default: one breaker for all calls
+client = LLMClient(
+    provider="openai",
+    circuit_breaker_policy=CircuitBreakerPolicy(failure_threshold=5),
+)
+
+# Per-tool isolation requires custom implementation:
+# 1. Create separate clients per tool
+# 2. Or use tool routing with different clients
+
+# Example: isolate external API calls
+api_client = LLMClient(
+    provider="openai",
+    circuit_breaker_policy=CircuitBreakerPolicy(failure_threshold=3),  # strict
+)
+llm_client = LLMClient(
+    provider="openai", 
+    circuit_breaker_policy=CircuitBreakerPolicy(failure_threshold=10),  # lenient
+)
+```
+
+### Circuit Breaker States
+
+| State | Description |
+|------|-------------|
+| **Closed** | Normal operation, requests flow through |
+| **Open** | Too many failures, requests fail fast |
+| **Half-Open** | Probe after cooldown to test recovery |
+
+| Failure Threshold | Cooldown | Behavior |
+|-------------------|----------|-----------|
+| 3 | 30s | Strict (for unreliable tools/APIs) |
+| 5 | 30s | Normal default |
+| 10 | 60s | Lenient (for primary providers) |
+
+---
+
 ## Multi-Provider Routing
 
 AFK supports multiple providers with automatic fallback via `RoutePolicy`:
