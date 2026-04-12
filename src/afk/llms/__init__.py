@@ -30,7 +30,7 @@ from .errors import (
 from .llm import LLM
 from .middleware import MiddlewareStack
 from .observability import LLMLifecycleEvent, LLMObserver
-from .profiles import PROFILES
+from .profiles import LLMProfile, PROFILES
 from .providers import (
     AnthropicAgentProvider,
     LiteLLMProvider,
@@ -113,6 +113,7 @@ __all__ = [
     "LLM",
     "LLMClient",
     "LLMBuilder",
+    "LLMProfile",
     "LLMSettings",
     "LLMProvider",
     "LLMTransport",

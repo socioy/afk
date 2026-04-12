@@ -66,16 +66,16 @@ class LLMBuilder:
     def profile(self, name: str) -> LLMBuilder:
         """Apply one named runtime profile from `afk.llms.profiles.PROFILES`."""
         key = name.strip().lower()
-        row = PROFILES.get(key)
-        if row is None:
+        profile = PROFILES.get(key)
+        if profile is None:
             raise ValueError(f"Unknown llm profile '{name}'")
-        self._retry_policy = row["retry"]
-        self._timeout_policy = row["timeout"]
-        self._rate_limit_policy = row["rate_limit"]
-        self._breaker_policy = row["breaker"]
-        self._hedging_policy = row["hedging"]
-        self._cache_policy = row["cache"]
-        self._coalescing_policy = row["coalescing"]
+        self._retry_policy = profile.retry
+        self._timeout_policy = profile.timeout
+        self._rate_limit_policy = profile.rate_limit
+        self._breaker_policy = profile.breaker
+        self._hedging_policy = profile.hedging
+        self._cache_policy = profile.cache
+        self._coalescing_policy = profile.coalescing
         return self
 
     def for_agent_runtime(self) -> LLMBuilder:
